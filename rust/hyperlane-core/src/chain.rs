@@ -362,24 +362,6 @@ impl HyperlaneDomain {
             } => *domain_protocol,
         }
     }
-
-    pub fn is_arbitrum_nitro(&self) -> bool {
-        matches!(
-            self,
-            HyperlaneDomain::Known(
-                KnownHyperlaneDomain::Arbitrum | KnownHyperlaneDomain::ArbitrumGoerli,
-            )
-        )
-    }
-
-    pub const fn index_mode(&self) -> IndexMode {
-        use HyperlaneDomainProtocol::*;
-        let protocol = self.domain_protocol();
-        many_to_one!(match protocol {
-            IndexMode::Block: [Ethereum, Cosmos],
-            IndexMode::Sequence : [Sealevel, Fuel],
-        })
-    }
 }
 
 #[cfg(test)]
