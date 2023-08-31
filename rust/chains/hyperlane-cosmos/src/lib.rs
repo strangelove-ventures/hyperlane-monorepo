@@ -4,5 +4,4 @@
 // TODO(nix): Remove once fully implemented
 #![allow(unused)]
 
-mod client;
 pub mod mailbox;

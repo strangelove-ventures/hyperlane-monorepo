@@ -17,7 +17,7 @@ num.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-tendermint-rpc = "0.33.0"
+tendermint-rpc = { version = "0.33.0", features = ["http-client"] }
 thiserror.workspace = true
 tokio.workspace = true
 tracing-futures.workspace = true

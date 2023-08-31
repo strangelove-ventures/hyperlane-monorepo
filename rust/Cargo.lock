@@ -3592,6 +3592,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyper-proxy"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca815a891b24fdfb243fa3239c86154392b0953ee584aa1a2a1f66d20cbe75cc"
+dependencies = [
+ "bytes",
+ "futures",
+ "headers",
+ "http",
+ "hyper",
+ "hyper-rustls 0.22.1",
+ "rustls-native-certs 0.5.0",
+ "tokio",
+ "tokio-rustls 0.22.0",
+ "tower-service",
+ "webpki 0.21.4",
+]
+
+[[package]]
 name = "hyper-rustls"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8757,7 +8776,12 @@ dependencies = [
  "async-trait",
  "bytes",
  "flex-error",
+ "futures",
  "getrandom 0.2.10",
+ "http",
+ "hyper",
+ "hyper-proxy",
+ "hyper-rustls 0.22.1",
  "peg",
  "pin-project",
  "semver",
@@ -8771,6 +8795,8 @@ dependencies = [
  "tendermint-proto",
  "thiserror",
  "time 0.3.25",
+ "tokio",
+ "tracing",
  "url",
  "uuid 0.8.2",
  "walkdir",
