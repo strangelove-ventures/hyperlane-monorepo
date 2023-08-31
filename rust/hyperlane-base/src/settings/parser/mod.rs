@@ -259,6 +259,7 @@ fn parse_chain(chain: ValueParser, name: &str) -> ConfigResult<ChainConf> {
                 .end()
                 .map(|url| ChainConnectionConf::Sealevel(h_sealevel::ConnectionConf { url }))
         }
+        HyperlaneDomainProtocol::Cosmos => todo!(),
     };
 
     cfg_unwrap_all!(&chain.cwp, err: [connection, mailbox, interchain_gas_paymaster, validator_announce]);
