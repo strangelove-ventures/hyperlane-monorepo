@@ -1,4 +1,3 @@
-use serde::Deserialize;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
 use std::sync::Arc;
@@ -7,7 +6,6 @@ use url::Url;
 
 use async_trait::async_trait;
 use eyre::Result;
-use futures_util::TryFutureExt;
 use hyperlane_core::{ChainCommunicationError, ChainResult, HyperlaneMessage, Indexer, LogMeta};
 use tendermint_rpc::client::Client;
 
