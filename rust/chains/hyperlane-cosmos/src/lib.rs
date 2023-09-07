@@ -6,3 +6,4 @@
 
 pub mod mailbox;
 pub mod multisig_ism;
+pub mod provider;
