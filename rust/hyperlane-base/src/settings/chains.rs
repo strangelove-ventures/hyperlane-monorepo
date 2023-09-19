@@ -291,7 +291,10 @@ impl ChainConf {
                 let va = Box::new(h_sealevel::SealevelValidatorAnnounce::new(conf, locator));
                 Ok(va as Box<dyn ValidatorAnnounce>)
             }
-            ChainConnectionConf::CosmosModules(_conf) => todo!()
+            ChainConnectionConf::CosmosModules(_conf) => {
+                let va = Box::new(h_cosmos_modules::CosmosValidatorAnnounce::new());
+                Ok(va as Box<dyn ValidatorAnnounce>)
+            }
         }
         .context("Building ValidatorAnnounce")
     }

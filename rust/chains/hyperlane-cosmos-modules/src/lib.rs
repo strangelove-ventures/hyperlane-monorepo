@@ -8,6 +8,7 @@ pub use mailbox::*;
 pub use multisig_ism::*;
 pub use provider::*;
 pub use trait_builder::*;
+pub use validator_announce::*;
 
 pub mod mailbox;
 pub mod multisig_ism;

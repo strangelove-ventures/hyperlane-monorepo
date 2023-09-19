@@ -9,6 +9,13 @@ use hyperlane_core::{
 #[derive(Debug)]
 pub struct CosmosValidatorAnnounce {}
 
+impl CosmosValidatorAnnounce {
+    /// create a new instance of CosmosValidatorAnnounce
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 impl HyperlaneContract for CosmosValidatorAnnounce {
     fn address(&self) -> H256 {
         todo!()
