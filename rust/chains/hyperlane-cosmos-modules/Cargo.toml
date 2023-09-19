@@ -1,5 +1,5 @@
 [package]
-name = "hyperlane-cosmos"
+name = "hyperlane-cosmos-modules"
 documentation.workspace = true
 edition.workspace = true
 homepage.workspace = true

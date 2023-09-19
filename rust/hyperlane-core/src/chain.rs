@@ -159,6 +159,8 @@ pub enum HyperlaneDomainProtocol {
     Sealevel,
     /// A chain built with the Cosmos SDK which uses hyperlane-cosmos.
     Cosmos,
+    /// A chain built with the Cosmos SDK/hyperlane module which uses hyperlane-cosmos-modules.
+    CosmosModules,
 }
 
 impl HyperlaneDomainProtocol {
@@ -169,6 +171,7 @@ impl HyperlaneDomainProtocol {
             Fuel => format!("{:?}", addr),
             Sealevel => format!("{:?}", addr),
             Cosmos => format!("{:?}", addr),
+            CosmosModules => format!("{:?}", addr),
         }
     }
 }
@@ -366,7 +369,7 @@ impl HyperlaneDomain {
         use HyperlaneDomainProtocol::*;
         let protocol = self.domain_protocol();
         many_to_one!(match protocol {
-            IndexMode::Block: [Ethereum, Cosmos],
+            IndexMode::Block: [Ethereum, Cosmos, CosmosModules],
             IndexMode::Sequence : [Sealevel, Fuel],
         })
     }

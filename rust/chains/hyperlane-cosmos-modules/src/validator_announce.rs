@@ -31,7 +31,8 @@ impl ValidatorAnnounce for CosmosValidatorAnnounce {
         &self,
         validators: &[H256],
     ) -> ChainResult<Vec<Vec<String>>> {
-        todo!()
+        //todo!()
+        Err(hyperlane_core::ChainCommunicationError::from_other_str("Unimplemented"))
     }
 
     async fn announce(
@@ -39,10 +40,12 @@ impl ValidatorAnnounce for CosmosValidatorAnnounce {
         announcement: SignedType<Announcement>,
         tx_gas_limit: Option<U256>,
     ) -> ChainResult<TxOutcome> {
-        todo!()
+        //todo!()
+        Err(hyperlane_core::ChainCommunicationError::from_other_str("Unimplemented"))
     }
 
     async fn announce_tokens_needed(&self, announcement: SignedType<Announcement>) -> Option<U256> {
-        todo!()
+        //todo!()
+        Some(U256::zero())
     }
 }

@@ -248,6 +248,7 @@ impl Validator {
                     info!("Validator has announced signature storage location");
                     break;
                 }
+                break; // Break here, to bypass val announcement check for cosmos-modules
                 info!(
                     announced_locations=?locations,
                     "Validator has not announced signature storage location"

@@ -16,7 +16,9 @@ use hyperlane_core::{
 use tendermint_rpc::client::Client;
 
 /// A reference to a Mailbox contract on some Cosmos chain
-pub struct CosmosMailbox {}
+pub struct CosmosMailbox {
+    domain: HyperlaneDomain,
+}
 
 impl HyperlaneContract for CosmosMailbox {
     fn address(&self) -> H256 {

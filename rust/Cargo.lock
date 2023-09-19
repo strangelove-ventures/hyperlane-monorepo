@@ -3686,6 +3686,7 @@ dependencies = [
  "fuels",
  "futures-util",
  "hyperlane-core",
+ "hyperlane-cosmos-modules",
  "hyperlane-ethereum",
  "hyperlane-fuel",
  "hyperlane-sealevel",
@@ -3749,7 +3750,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperlane-cosmos"
+name = "hyperlane-cosmos-modules"
 version = "0.1.0"
 dependencies = [
  "async-trait",
