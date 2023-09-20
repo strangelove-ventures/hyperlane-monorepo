@@ -44,36 +44,43 @@ impl Debug for CosmosMailbox {
 
 #[async_trait]
 impl Mailbox for CosmosMailbox {
+    // Val requirement ############
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn tree(&self, lag: Option<NonZeroU64>) -> ChainResult<IncrementalMerkle> {
         todo!()
     }
 
+    // Val requirement #############
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn count(&self, lag: Option<NonZeroU64>) -> ChainResult<u32> {
         todo!()
     }
 
+    // Relayer only
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn delivered(&self, id: H256) -> ChainResult<bool> {
         todo!()
     }
 
+    // Val requirement ##############
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn latest_checkpoint(&self, lag: Option<NonZeroU64>) -> ChainResult<Checkpoint> {
         todo!()
     }
 
+    // not required
     #[instrument(err, ret, skip(self))]
     async fn default_ism(&self) -> ChainResult<H256> {
         todo!()
     }
 
+    // relayer only
     #[instrument(err, ret, skip(self))]
     async fn recipient_ism(&self, recipient: H256) -> ChainResult<H256> {
         todo!()
     }
 
+    // relayer only
     #[instrument(err, ret, skip(self))]
     async fn process(
         &self,
@@ -84,6 +91,7 @@ impl Mailbox for CosmosMailbox {
         todo!()
     }
 
+    //relayer only
     #[instrument(err, ret, skip(self), fields(msg=%message, metadata=%fmt_bytes(metadata)))]
     async fn process_estimate_costs(
         &self,
@@ -93,6 +101,7 @@ impl Mailbox for CosmosMailbox {
         todo!()
     }
 
+    // not required
     fn process_calldata(&self, message: &HyperlaneMessage, metadata: &[u8]) -> Vec<u8> {
         todo!()
     }
