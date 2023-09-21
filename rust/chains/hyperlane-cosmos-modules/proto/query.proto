@@ -1,0 +1,41 @@
+syntax = "proto3";
+package hyperlane.mailbox.v1;
+
+// QueryCurrentTreeMetadataRequest is the request type for the Query/Tree RPC
+// method.
+message QueryCurrentTreeMetadataRequest {}
+
+// QueryTreeResponse is the response type for the Query/Tree RPC method.
+message QueryCurrentTreeMetadataResponse {
+  bytes root = 1;
+  uint32 count = 2;
+}
+
+// QueryDomain is the request type for the Query/Domain RPC
+// method.
+message QueryDomainRequest {}
+
+// QueryDomainResponse is the response type for the Query/Domain RPC method.
+message QueryDomainResponse { uint32 domain = 1; }
+
+// QueryCurrentTreeRequest is the request type for the Query/Tree RPC method
+message QueryCurrentTreeRequest {}
+
+// QueryCurrentTreeResponse is the response type for the Query/Tree RPC method
+message QueryCurrentTreeResponse {
+  repeated bytes branches = 1;
+  uint32 count = 2;
+}
+
+// Query service for hyperlane mailbox module
+service Query {
+  // Get current tree metadata
+  rpc CurrentTreeMetadata(QueryCurrentTreeMetadataRequest)
+      returns (QueryCurrentTreeMetadataResponse);
+
+  // Get domain
+  rpc Domain(QueryDomainRequest) returns (QueryDomainResponse); 
+
+  // Get current tree
+  rpc CurrentTree(QueryCurrentTreeRequest) returns (QueryCurrentTreeResponse);
+}

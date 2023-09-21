@@ -9,15 +9,41 @@ use url::Url;
 use async_trait::async_trait;
 use eyre::Result;
 use hyperlane_core::{
-    accumulator::incremental::IncrementalMerkle, utils::fmt_bytes, ChainCommunicationError,
+    accumulator::{
+        TREE_DEPTH,
+        incremental::IncrementalMerkle, 
+    },
+    utils::fmt_bytes, ChainCommunicationError,
     ChainResult, Checkpoint, HyperlaneChain, HyperlaneContract, HyperlaneDomain, HyperlaneMessage,
     HyperlaneProvider, Indexer, LogMeta, Mailbox, TxCostEstimate, TxOutcome, H256, U256,
 };
 use tendermint_rpc::client::Client;
 
+use grpc_client::query_client::QueryClient;
+use grpc_client::{QueryCurrentTreeMetadataRequest, QueryCurrentTreeMetadataResponse, QueryCurrentTreeRequest, QueryCurrentTreeResponse};
+
+pub mod grpc_client {
+    tonic::include_proto!("hyperlane.mailbox.v1");
+}
+
 /// A reference to a Mailbox contract on some Cosmos chain
 pub struct CosmosMailbox {
     domain: HyperlaneDomain,
+    grpc_address: String,
+    mailbox_address: H256,
+}
+
+impl CosmosMailbox {
+    pub fn new(
+        domain: HyperlaneDomain,
+        grpc_address: String,
+    ) -> Self {
+        Self {
+            domain,
+            grpc_address,
+            mailbox_address: H256::default(),
+        }
+    }
 }
 
 impl HyperlaneContract for CosmosMailbox {
@@ -44,16 +70,39 @@ impl Debug for CosmosMailbox {
 
 #[async_trait]
 impl Mailbox for CosmosMailbox {
-    // Val requirement ############
+    // Val requirement
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn tree(&self, lag: Option<NonZeroU64>) -> ChainResult<IncrementalMerkle> {
-        todo!()
+        let mut client = QueryClient::connect(self.grpc_address.clone()).await.unwrap();
+        let request = tonic::Request::new(QueryCurrentTreeRequest {});
+        let response = client.current_tree(request).await.unwrap().into_inner();
+        let mut branches: [H256; TREE_DEPTH] = Default::default();
+        response.branches
+            .iter()
+            .enumerate()
+            .for_each(|(i, elem)| {
+                let elem_copy = elem.clone();
+                if(!elem_copy.is_empty()) {
+                    let branch: [u8; 32] = elem_copy.try_into().unwrap();
+                    branches[i] = H256::from(branch);
+                }
+                else {
+                    branches[i] = H256::zero();
+                }
+            });
+        Ok(IncrementalMerkle::new(
+            branches,
+            response.count.try_into().unwrap(),
+        ))
     }
 
-    // Val requirement #############
+    // Val requirement
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn count(&self, lag: Option<NonZeroU64>) -> ChainResult<u32> {
-        todo!()
+        let mut client = QueryClient::connect(self.grpc_address.clone()).await.unwrap();
+        let request = tonic::Request::new(QueryCurrentTreeMetadataRequest {});
+        let response = client.current_tree_metadata(request).await.unwrap();
+        Ok(response.into_inner().count)
     }
 
     // Relayer only
@@ -62,10 +111,20 @@ impl Mailbox for CosmosMailbox {
         todo!()
     }
 
-    // Val requirement ##############
+    // Val requirement
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn latest_checkpoint(&self, lag: Option<NonZeroU64>) -> ChainResult<Checkpoint> {
-        todo!()
+        let mut client = QueryClient::connect(self.grpc_address.clone()).await.unwrap();
+        let request = tonic::Request::new(QueryCurrentTreeMetadataRequest {});
+        let response = client.current_tree_metadata(request).await.unwrap().into_inner();
+        let root: [u8; 32] = response.root.try_into().unwrap();
+        Ok(Checkpoint { 
+            mailbox_address: self.mailbox_address,
+            mailbox_domain: self.domain.id(),
+            //root: H256::from(response.root.try_into().unwrap()),
+            root: H256::from(root),
+            index: response.count
+        })
     }
 
     // not required
@@ -137,6 +196,7 @@ impl<T: Client + Send + Sync + Debug> Indexer<HyperlaneMessage> for CosmosMailbo
 mod tests {
     use super::*;
     use tendermint_rpc::{Method, MockClient, MockRequestMethodMatcher};
+    use hyperlane_core::{HyperlaneDomainType, HyperlaneDomainProtocol};
 
     const BLOCK_RESPONSE: &str = r#"{
   "jsonrpc": "2.0",
@@ -212,4 +272,54 @@ mod tests {
         Arc::try_unwrap(indexer.client).unwrap().close();
         driver_hdl.await.unwrap();
     }
+
+    #[tokio::test]
+    async fn test_mailbox_count() {
+        let mailbox = CosmosMailbox::new(
+            HyperlaneDomain::Unknown {
+            domain_id: 0,
+            domain_name: "CosmosTest".to_string(),
+            domain_type: HyperlaneDomainType::LocalTestChain,
+            domain_protocol: HyperlaneDomainProtocol::Ethereum,
+        },
+            "http://127.0.0.1:39365".to_string(),
+        );
+
+        let count = mailbox.count(None).await.unwrap();
+        println!("Count: {:?}", count);
+        assert_eq!(count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_mailbox_tree() {
+        let mailbox = CosmosMailbox::new(
+            HyperlaneDomain::Unknown {
+            domain_id: 0,
+            domain_name: "CosmosTest".to_string(),
+            domain_type: HyperlaneDomainType::LocalTestChain,
+            domain_protocol: HyperlaneDomainProtocol::Ethereum,
+        },
+            "http://127.0.0.1:39365".to_string(),
+        );
+
+        let im = mailbox.tree(None).await.unwrap();
+        assert_eq!(im.count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_mailbox_latest_checkpoint() {
+        let mailbox = CosmosMailbox::new(
+            HyperlaneDomain::Unknown {
+            domain_id: 0,
+            domain_name: "CosmosTest".to_string(),
+            domain_type: HyperlaneDomainType::LocalTestChain,
+            domain_protocol: HyperlaneDomainProtocol::Ethereum,
+        },
+            "http://127.0.0.1:39365".to_string(),
+        );
+
+        let cp = mailbox.latest_checkpoint(None).await.unwrap();
+        assert_eq!(cp.index, 1);
+    }
+
 }
