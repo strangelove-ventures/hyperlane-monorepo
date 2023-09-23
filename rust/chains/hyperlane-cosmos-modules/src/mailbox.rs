@@ -20,7 +20,7 @@ use hyperlane_core::{
 
 use grpc_client::query_client::QueryClient;
 use grpc_client::{QueryCurrentTreeMetadataRequest, QueryCurrentTreeMetadataResponse, QueryCurrentTreeRequest, QueryCurrentTreeResponse};
-use cosmrs::rpc::client::{Client, CompatMode, HttpClient};
+use cosmrs::rpc::client::{Client, CompatMode, HttpClient, HttpClientUrl};
 use cosmrs::tendermint::abci::EventAttribute;
 
 pub mod grpc_client {
@@ -74,9 +74,11 @@ impl Mailbox for CosmosMailbox {
     // Val requirement
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn tree(&self, lag: Option<NonZeroU64>) -> ChainResult<IncrementalMerkle> {
-        let mut client = QueryClient::connect(self.grpc_address.clone()).await.unwrap();
+        let mut client = QueryClient::connect(self.grpc_address.clone()).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?;
         let request = tonic::Request::new(QueryCurrentTreeRequest {});
-        let response = client.current_tree(request).await.unwrap().into_inner();
+        let response = client.current_tree(request).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?.into_inner();
         let mut branches: [H256; TREE_DEPTH] = Default::default();
         response.branches
             .iter()
@@ -100,9 +102,11 @@ impl Mailbox for CosmosMailbox {
     // Val requirement
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn count(&self, lag: Option<NonZeroU64>) -> ChainResult<u32> {
-        let mut client = QueryClient::connect(self.grpc_address.clone()).await.unwrap();
+        let mut client = QueryClient::connect(self.grpc_address.clone()).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?;
         let request = tonic::Request::new(QueryCurrentTreeMetadataRequest {});
-        let response = client.current_tree_metadata(request).await.unwrap();
+        let response = client.current_tree_metadata(request).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?;
         Ok(response.into_inner().count)
     }
 
@@ -115,14 +119,15 @@ impl Mailbox for CosmosMailbox {
     // Val requirement
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn latest_checkpoint(&self, lag: Option<NonZeroU64>) -> ChainResult<Checkpoint> {
-        let mut client = QueryClient::connect(self.grpc_address.clone()).await.unwrap();
+        let mut client = QueryClient::connect(self.grpc_address.clone()).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?;
         let request = tonic::Request::new(QueryCurrentTreeMetadataRequest {});
-        let response = client.current_tree_metadata(request).await.unwrap().into_inner();
+        let response = client.current_tree_metadata(request).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?.into_inner();
         let root: [u8; 32] = response.root.try_into().unwrap();
         Ok(Checkpoint { 
             mailbox_address: self.mailbox_address,
             mailbox_domain: self.domain.id(),
-            //root: H256::from(response.root.try_into().unwrap()),
             root: H256::from(root),
             index: response.count
         })
@@ -170,29 +175,39 @@ impl Mailbox for CosmosMailbox {
 /// Retrieves event data for a Cosmos chain that uses the hyperlane modules.
 #[derive(Debug)]
 pub struct CosmosMailboxIndexer {
-    pub rpc_url: String,
+    pub rpc_url: HttpClientUrl,
 }
 
 impl CosmosMailboxIndexer {
     pub fn new(rpc_url: String) -> Self {
         Self {
-            rpc_url,
+            rpc_url: rpc_url.parse().unwrap(),
         }
     }
 
-    fn parse_event(&self, attrs: Vec<EventAttribute>) -> HyperlaneMessage {
+    fn get_client(&self) -> ChainResult<HttpClient> {
+        let client = HttpClient::builder(self.rpc_url.clone())
+            .compat_mode(CompatMode::V0_37)
+            .build()
+            .map_err(|e| ChainCommunicationError::from_other(e))?;
+        Ok(client)
+    }
+
+    fn parse_event(&self, attrs: Vec<EventAttribute>) -> ChainResult<HyperlaneMessage> {
         let mut res = HyperlaneMessage::default();
         for attr in attrs {
             let key = attr.key.as_str();
             let value = attr.value.as_str();
 
             match key {
-                "destination" => res.destination = value.parse().unwrap(),
-                "message" => res.body = hex::decode(value.trim_start_matches("0x")).unwrap(),
-                "nonce" => res.nonce = value.parse().unwrap(),
-                "origin" => res.origin = value.parse().unwrap(),
+                "destination" => res.destination = value.parse().map_err(|e| ChainCommunicationError::from_other(e))?,
+                "message" => res.body = hex::decode(value.trim_start_matches("0x"))
+                    .map_err(|e| ChainCommunicationError::from_other(e))?,
+                "nonce" => res.nonce = value.parse().map_err(|e| ChainCommunicationError::from_other(e))?,
+                "origin" => res.origin = value.parse().map_err(|e| ChainCommunicationError::from_other(e))?,
                 "recipient" => {
-                    let mut recipient = hex::decode(value.trim_start_matches("0x")).unwrap();
+                    let mut recipient = hex::decode(value.trim_start_matches("0x"))
+                        .map_err(|e| ChainCommunicationError::from_other(e))?;
                     if recipient.len() == 20 {
                         let tmp = vec![0u8; 12];
                         recipient = [tmp, recipient].concat();
@@ -201,21 +216,20 @@ impl CosmosMailboxIndexer {
                         H256::from_slice(recipient.as_slice());
                 }
                 "sender" => res.sender = 
-                    H256::from_slice(hex::decode(value.trim_start_matches("0x")).unwrap().as_slice()),
-                "version" => res.version = value.parse().unwrap(),
+                    H256::from_slice(hex::decode(value.trim_start_matches("0x"))
+                        .map_err(|e| ChainCommunicationError::from_other(e))?.as_slice()),
+                "version" => res.version = value.parse().map_err(|e| ChainCommunicationError::from_other(e))?,
                 _ => {}
             }
         }
-        res
+        Ok(res)
     }
 
     async fn get_and_parse_block(&self, block_num: u32) -> ChainResult<Vec<(HyperlaneMessage, LogMeta)>> {
-        let client = HttpClient::builder(self.rpc_url.parse().unwrap())
-            .compat_mode(CompatMode::V0_37)
-            .build().unwrap();
+        let client = self.get_client()?;
 
-        let block = client.block(block_num).await.unwrap();
-        let block_result = client.block_results(block_num).await.unwrap();
+        let block = client.block(block_num).await.map_err(|e| ChainCommunicationError::from_other(e))?;
+        let block_result = client.block_results(block_num).await.map_err(|e| ChainCommunicationError::from_other(e))?;
         let tx_results = block_result.txs_results;
         
         let mut result: Vec<(HyperlaneMessage, LogMeta)> = vec![];
@@ -225,7 +239,7 @@ impl CosmosMailboxIndexer {
                     if event.kind.as_str() != "dispatch" {
                         continue;
                     }
-                    let msg = self.parse_event(event.attributes.clone());
+                    let msg = self.parse_event(event.attributes.clone())?;
                     let meta = LogMeta {
                         address: H256::default(),
                         block_number: block_num as u64,
@@ -258,13 +272,12 @@ impl Indexer<HyperlaneMessage> for CosmosMailboxIndexer {
 
     /// Fetches the latest finalized block number from Cosmos API (aka LCD). Cosmos chains have fast finality.
     async fn get_finalized_block_number(&self) -> ChainResult<u32> {
-        /*let resp = self
-            .client
+        let client = self.get_client()?;
+        let result = client
             .latest_block()
             .await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
-        Ok(resp.block.header.height.value() as u32)*/
-        todo!()
+        Ok(result.block.header.height.value() as u32)
     }
 }
 
