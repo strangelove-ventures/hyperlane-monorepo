@@ -417,4 +417,11 @@ mod tests {
         assert_eq!(logs[0].0.origin, 12345);
     }
 
+    #[tokio::test]
+    async fn test_mailbox_indexer_get_finalized_block_number() {
+        let indexer = CosmosMailboxIndexer::new("http://127.0.0.1:35481".to_string());
+        let block_num = indexer.get_finalized_block_number().await.unwrap();
+        assert_eq!(block_num, 10);
+    }
+
 }
