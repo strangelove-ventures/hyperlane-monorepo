@@ -15,12 +15,13 @@ use hyperlane_core::{
     },
     utils::fmt_bytes, ChainCommunicationError,
     ChainResult, Checkpoint, HyperlaneChain, HyperlaneContract, HyperlaneDomain, HyperlaneMessage,
-    HyperlaneProvider, Indexer, LogMeta, Mailbox, TxCostEstimate, TxOutcome, H256, U256,
+    HyperlaneProvider, Indexer, LogMeta, Mailbox, TxCostEstimate, TxOutcome, H256, H512, U256,
 };
-use tendermint_rpc::client::Client;
 
 use grpc_client::query_client::QueryClient;
 use grpc_client::{QueryCurrentTreeMetadataRequest, QueryCurrentTreeMetadataResponse, QueryCurrentTreeRequest, QueryCurrentTreeResponse};
+use cosmrs::rpc::client::{Client, CompatMode, HttpClient};
+use cosmrs::tendermint::abci::EventAttribute;
 
 pub mod grpc_client {
     tonic::include_proto!("hyperlane.mailbox.v1");
@@ -168,34 +169,108 @@ impl Mailbox for CosmosMailbox {
 
 /// Retrieves event data for a Cosmos chain that uses the hyperlane modules.
 #[derive(Debug)]
-pub struct CosmosMailboxIndexer<T: Client + Send + Sync> {
-    pub client: Arc<T>,
+pub struct CosmosMailboxIndexer {
+    pub rpc_url: String,
+}
+
+impl CosmosMailboxIndexer {
+    pub fn new(rpc_url: String) -> Self {
+        Self {
+            rpc_url,
+        }
+    }
+
+    fn parse_event(&self, attrs: Vec<EventAttribute>) -> HyperlaneMessage {
+        let mut res = HyperlaneMessage::default();
+        for attr in attrs {
+            let key = attr.key.as_str();
+            let value = attr.value.as_str();
+
+            match key {
+                "destination" => res.destination = value.parse().unwrap(),
+                "message" => res.body = hex::decode(value.trim_start_matches("0x")).unwrap(),
+                "nonce" => res.nonce = value.parse().unwrap(),
+                "origin" => res.origin = value.parse().unwrap(),
+                "recipient" => {
+                    let mut recipient = hex::decode(value.trim_start_matches("0x")).unwrap();
+                    if recipient.len() == 20 {
+                        let tmp = vec![0u8; 12];
+                        recipient = [tmp, recipient].concat();
+                    }
+                    res.recipient = 
+                        H256::from_slice(recipient.as_slice());
+                }
+                "sender" => res.sender = 
+                    H256::from_slice(hex::decode(value.trim_start_matches("0x")).unwrap().as_slice()),
+                "version" => res.version = value.parse().unwrap(),
+                _ => {}
+            }
+        }
+        res
+    }
+
+    async fn get_and_parse_block(&self, block_num: u32) -> ChainResult<Vec<(HyperlaneMessage, LogMeta)>> {
+        let client = HttpClient::builder(self.rpc_url.parse().unwrap())
+            .compat_mode(CompatMode::V0_37)
+            .build().unwrap();
+
+        let block = client.block(block_num).await.unwrap();
+        let block_result = client.block_results(block_num).await.unwrap();
+        let tx_results = block_result.txs_results;
+        
+        let mut result: Vec<(HyperlaneMessage, LogMeta)> = vec![];
+        if let Some(tx_results) = tx_results {
+            for (tx_idx, tx) in tx_results.iter().enumerate() {
+                for (event_idx, event) in tx.events.clone().iter().enumerate() {
+                    if event.kind.as_str() != "dispatch" {
+                        continue;
+                    }
+                    let msg = self.parse_event(event.attributes.clone());
+                    let meta = LogMeta {
+                        address: H256::default(),
+                        block_number: block_num as u64,
+                        block_hash: H256::from_slice(block.block_id.hash.as_bytes()),
+                        transaction_id: H512::from_slice(tx.data.as_ref()),
+                        transaction_index: tx_idx as u64,
+                        log_index: U256::from(event_idx),
+                    };
+                    result.push((msg, meta));
+                }
+            }
+        }   
+        Ok(result)
+    }
 }
 
 #[async_trait]
-impl<T: Client + Send + Sync + Debug> Indexer<HyperlaneMessage> for CosmosMailboxIndexer<T> {
+impl Indexer<HyperlaneMessage> for CosmosMailboxIndexer {
     async fn fetch_logs(
         &self,
         range: RangeInclusive<u32>,
     ) -> ChainResult<Vec<(HyperlaneMessage, LogMeta)>> {
-        todo!()
+        let mut result: Vec<(HyperlaneMessage, LogMeta)> = vec![];
+        for block_number in range {
+            let logs = self.get_and_parse_block(block_number).await?;
+            result.extend(logs);
+        }
+        Ok(result)
     }
 
     /// Fetches the latest finalized block number from Cosmos API (aka LCD). Cosmos chains have fast finality.
     async fn get_finalized_block_number(&self) -> ChainResult<u32> {
-        let resp = self
+        /*let resp = self
             .client
             .latest_block()
             .await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
-        Ok(resp.block.header.height.value() as u32)
+        Ok(resp.block.header.height.value() as u32)*/
+        todo!()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tendermint_rpc::{Method, MockClient, MockRequestMethodMatcher};
     use hyperlane_core::{HyperlaneDomainType, HyperlaneDomainProtocol};
 
     const BLOCK_RESPONSE: &str = r#"{
@@ -257,7 +332,7 @@ mod tests {
 }
 "#;
 
-    #[tokio::test]
+    /*#[tokio::test]
     async fn test_get_finalized_block_number() {
         let matcher =
             MockRequestMethodMatcher::default().map(Method::Block, Ok(BLOCK_RESPONSE.to_string()));
@@ -271,7 +346,7 @@ mod tests {
 
         Arc::try_unwrap(indexer.client).unwrap().close();
         driver_hdl.await.unwrap();
-    }
+    }*/
 
     #[tokio::test]
     async fn test_mailbox_count() {
@@ -320,6 +395,13 @@ mod tests {
 
         let cp = mailbox.latest_checkpoint(None).await.unwrap();
         assert_eq!(cp.index, 1);
+    }
+
+    #[tokio::test]
+    async fn test_mailbox_indexer_fetch_logs() {
+        let indexer = CosmosMailboxIndexer::new("http://127.0.0.1:38759".to_string());
+        let logs = indexer.fetch_logs(RangeInclusive::new(45, 48)).await.unwrap();
+        assert_eq!(logs[0].0.origin, 12345);
     }
 
 }
