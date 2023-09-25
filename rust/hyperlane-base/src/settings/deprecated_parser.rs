@@ -86,7 +86,7 @@ enum DeprecatedRawChainConnectionConf {
     Ethereum(h_eth::RawConnectionConf),
     Fuel(h_fuel::DeprecatedRawConnectionConf),
     Sealevel(h_sealevel::DeprecatedRawConnectionConf),
-    ComsosModules(h_cosmos_modules::RawConnectionConf),
+    CosmosModules(h_cosmos_modules::DeprecatedRawConnectionConf),
     #[serde(other)]
     Unknown,
 }
@@ -102,7 +102,7 @@ impl FromRawConf<DeprecatedRawChainConnectionConf> for ChainConnectionConf {
             Ethereum(r) => Ok(Self::Ethereum(r.parse_config(&cwp.join("connection"))?)),
             Fuel(r) => Ok(Self::Fuel(r.parse_config(&cwp.join("connection"))?)),
             Sealevel(r) => Ok(Self::Sealevel(r.parse_config(&cwp.join("connection"))?)),
-            ComsosModules(r) => Ok(Self::CosmosModules(r.parse_config(&cwp.join("connection"))?)),
+            CosmosModules(r) => Ok(Self::CosmosModules(r.parse_config(&cwp.join("connection"))?)),
             Unknown => {
                 Err(eyre!("Unknown chain protocol")).into_config_result(|| cwp.join("protocol"))
             }

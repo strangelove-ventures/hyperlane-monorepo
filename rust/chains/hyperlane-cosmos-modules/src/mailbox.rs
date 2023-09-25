@@ -15,13 +15,15 @@ use hyperlane_core::{
     },
     utils::fmt_bytes, ChainCommunicationError,
     ChainResult, Checkpoint, HyperlaneChain, HyperlaneContract, HyperlaneDomain, HyperlaneMessage,
-    HyperlaneProvider, Indexer, LogMeta, Mailbox, TxCostEstimate, TxOutcome, H256, H512, U256,
+    HyperlaneProvider, Indexer, LogMeta, Mailbox, SequenceIndexer, TxCostEstimate, TxOutcome, H256, H512, U256,
 };
 
 use grpc_client::query_client::QueryClient;
 use grpc_client::{QueryCurrentTreeMetadataRequest, QueryCurrentTreeMetadataResponse, QueryCurrentTreeRequest, QueryCurrentTreeResponse};
 use cosmrs::rpc::client::{Client, CompatMode, HttpClient, HttpClientUrl};
 use cosmrs::tendermint::abci::EventAttribute;
+
+use crate::ConnectionConf;
 
 pub mod grpc_client {
     tonic::include_proto!("hyperlane.mailbox.v1");
@@ -30,20 +32,21 @@ pub mod grpc_client {
 /// A reference to a Mailbox contract on some Cosmos chain
 pub struct CosmosMailbox {
     domain: HyperlaneDomain,
-    grpc_address: String,
+    grpc_url: String,
     mailbox_address: H256,
 }
 
 impl CosmosMailbox {
     pub fn new(
+        conf: &ConnectionConf,
         domain: HyperlaneDomain,
-        grpc_address: String,
-    ) -> Self {
-        Self {
+        //grpc_address: String,
+    ) -> ChainResult<Self> {
+        Ok(Self {
             domain,
-            grpc_address,
+            grpc_url: conf.get_grpc_url(),
             mailbox_address: H256::default(),
-        }
+        })
     }
 }
 
@@ -74,7 +77,7 @@ impl Mailbox for CosmosMailbox {
     // Val requirement
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn tree(&self, lag: Option<NonZeroU64>) -> ChainResult<IncrementalMerkle> {
-        let mut client = QueryClient::connect(self.grpc_address.clone()).await
+        let mut client = QueryClient::connect(self.grpc_url.clone()).await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
         let request = tonic::Request::new(QueryCurrentTreeRequest {});
         let response = client.current_tree(request).await
@@ -102,7 +105,7 @@ impl Mailbox for CosmosMailbox {
     // Val requirement
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn count(&self, lag: Option<NonZeroU64>) -> ChainResult<u32> {
-        let mut client = QueryClient::connect(self.grpc_address.clone()).await
+        let mut client = QueryClient::connect(self.grpc_url.clone()).await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
         let request = tonic::Request::new(QueryCurrentTreeMetadataRequest {});
         let response = client.current_tree_metadata(request).await
@@ -119,7 +122,7 @@ impl Mailbox for CosmosMailbox {
     // Val requirement
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn latest_checkpoint(&self, lag: Option<NonZeroU64>) -> ChainResult<Checkpoint> {
-        let mut client = QueryClient::connect(self.grpc_address.clone()).await
+        let mut client = QueryClient::connect(self.grpc_url.clone()).await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
         let request = tonic::Request::new(QueryCurrentTreeMetadataRequest {});
         let response = client.current_tree_metadata(request).await
@@ -175,13 +178,15 @@ impl Mailbox for CosmosMailbox {
 /// Retrieves event data for a Cosmos chain that uses the hyperlane modules.
 #[derive(Debug)]
 pub struct CosmosMailboxIndexer {
+    pub grpc_url: String,
     pub rpc_url: HttpClientUrl,
 }
 
 impl CosmosMailboxIndexer {
-    pub fn new(rpc_url: String) -> Self {
+    pub fn new(conf: &ConnectionConf) -> Self {
         Self {
-            rpc_url: rpc_url.parse().unwrap(),
+            grpc_url: conf.get_grpc_url(),
+            rpc_url: conf.get_rpc_url().parse().unwrap(),
         }
     }
 
@@ -281,6 +286,24 @@ impl Indexer<HyperlaneMessage> for CosmosMailboxIndexer {
     }
 }
 
+#[async_trait]
+impl SequenceIndexer<HyperlaneMessage> for CosmosMailboxIndexer {
+    async fn sequence_and_tip(&self) -> ChainResult<(Option<u32>, u32)> {
+        let tip = self.get_finalized_block_number().await?;
+        let mut client = QueryClient::connect(self.grpc_url.clone()).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?;
+        let request = tonic::Request::new(QueryCurrentTreeMetadataRequest {});
+        let response = client.current_tree_metadata(request).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?;
+        let resp_count = response.into_inner().count;
+        let count = match resp_count {
+            0 => None,
+            _ => Some(resp_count)
+        };
+        Ok((count, tip))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -364,14 +387,17 @@ mod tests {
     #[tokio::test]
     async fn test_mailbox_count() {
         let mailbox = CosmosMailbox::new(
+            &ConnectionConf{
+                grpc_url: "127.0.0.1:1234".to_string(),
+                rpc_url: "".to_string(),
+            },
             HyperlaneDomain::Unknown {
-            domain_id: 0,
-            domain_name: "CosmosTest".to_string(),
-            domain_type: HyperlaneDomainType::LocalTestChain,
-            domain_protocol: HyperlaneDomainProtocol::Ethereum,
-        },
-            "http://127.0.0.1:39365".to_string(),
-        );
+                domain_id: 0,
+                domain_name: "CosmosTest".to_string(),
+                domain_type: HyperlaneDomainType::LocalTestChain,
+                domain_protocol: HyperlaneDomainProtocol::Ethereum,
+            },
+        ).unwrap();
 
         let count = mailbox.count(None).await.unwrap();
         println!("Count: {:?}", count);
@@ -381,14 +407,17 @@ mod tests {
     #[tokio::test]
     async fn test_mailbox_tree() {
         let mailbox = CosmosMailbox::new(
+            &ConnectionConf{
+                grpc_url: "127.0.0.1:1234".to_string(),
+                rpc_url: "".to_string(),
+            },
             HyperlaneDomain::Unknown {
-            domain_id: 0,
-            domain_name: "CosmosTest".to_string(),
-            domain_type: HyperlaneDomainType::LocalTestChain,
-            domain_protocol: HyperlaneDomainProtocol::Ethereum,
-        },
-            "http://127.0.0.1:39365".to_string(),
-        );
+                domain_id: 0,
+                domain_name: "CosmosTest".to_string(),
+                domain_type: HyperlaneDomainType::LocalTestChain,
+                domain_protocol: HyperlaneDomainProtocol::Ethereum,
+            },
+        ).unwrap();
 
         let im = mailbox.tree(None).await.unwrap();
         assert_eq!(im.count(), 1);
@@ -397,14 +426,17 @@ mod tests {
     #[tokio::test]
     async fn test_mailbox_latest_checkpoint() {
         let mailbox = CosmosMailbox::new(
+            &ConnectionConf{
+                grpc_url: "127.0.0.1:1234".to_string(),
+                rpc_url: "".to_string(),
+            },
             HyperlaneDomain::Unknown {
-            domain_id: 0,
-            domain_name: "CosmosTest".to_string(),
-            domain_type: HyperlaneDomainType::LocalTestChain,
-            domain_protocol: HyperlaneDomainProtocol::Ethereum,
-        },
-            "http://127.0.0.1:39365".to_string(),
-        );
+                domain_id: 0,
+                domain_name: "CosmosTest".to_string(),
+                domain_type: HyperlaneDomainType::LocalTestChain,
+                domain_protocol: HyperlaneDomainProtocol::Ethereum,
+            },
+        ).unwrap();
 
         let cp = mailbox.latest_checkpoint(None).await.unwrap();
         assert_eq!(cp.index, 1);
@@ -412,14 +444,23 @@ mod tests {
 
     #[tokio::test]
     async fn test_mailbox_indexer_fetch_logs() {
-        let indexer = CosmosMailboxIndexer::new("http://127.0.0.1:38759".to_string());
+        let indexer = CosmosMailboxIndexer::new(
+            &ConnectionConf{
+                grpc_url: "".to_string(),
+                rpc_url: "127.0.0.1:1234".to_string(),
+            },);
         let logs = indexer.fetch_logs(RangeInclusive::new(45, 48)).await.unwrap();
         assert_eq!(logs[0].0.origin, 12345);
     }
 
     #[tokio::test]
     async fn test_mailbox_indexer_get_finalized_block_number() {
-        let indexer = CosmosMailboxIndexer::new("http://127.0.0.1:35481".to_string());
+        let indexer = CosmosMailboxIndexer::new(
+            &ConnectionConf{
+                grpc_url: "".to_string(),
+                rpc_url: "127.0.0.1:1234".to_string(),
+            },
+        );
         let block_num = indexer.get_finalized_block_number().await.unwrap();
         assert_eq!(block_num, 10);
     }

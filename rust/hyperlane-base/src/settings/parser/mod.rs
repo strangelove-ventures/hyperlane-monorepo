@@ -260,7 +260,21 @@ fn parse_chain(chain: ValueParser, name: &str) -> ConfigResult<ChainConf> {
                 .map(|url| ChainConnectionConf::Sealevel(h_sealevel::ConnectionConf { url }))
         }
         HyperlaneDomainProtocol::Cosmos => todo!(),
-        HyperlaneDomainProtocol::CosmosModules => todo!(),
+        HyperlaneDomainProtocol::CosmosModules => {
+            let grpc_url = chain
+                .chain(&mut err)
+                .get_opt_key("connection")
+                .get_opt_key("grpc_url")
+                .parse_string()
+                .unwrap_or("").to_string();
+            let rpc_url = chain
+                .chain(&mut err)
+                .get_opt_key("connection")
+                .get_opt_key("rpc_url")
+                .parse_string()
+                .unwrap_or("").to_string();
+            Some(ChainConnectionConf::CosmosModules(h_cosmos_modules::ConnectionConf { grpc_url, rpc_url }))
+        },
     };
 
     cfg_unwrap_all!(&chain.cwp, err: [connection, mailbox, interchain_gas_paymaster, validator_announce]);

@@ -141,7 +141,11 @@ impl ChainConf {
                     .map(|m| Box::new(m) as Box<dyn Mailbox>)
                     .map_err(Into::into)
             }
-            ChainConnectionConf::CosmosModules(_conf) => todo!()
+            ChainConnectionConf::CosmosModules(conf) => {
+                h_cosmos_modules::CosmosMailbox::new(conf, self.domain.clone())
+                    .map(|m| Box::new(m) as Box<dyn Mailbox>)
+                    .map_err(Into::into)
+            }
         }
         .context(ctx)
     }
@@ -172,7 +176,12 @@ impl ChainConf {
                 let indexer = Box::new(h_sealevel::SealevelMailboxIndexer::new(conf, locator)?);
                 Ok(indexer as Box<dyn SequenceIndexer<HyperlaneMessage>>)
             }
-            ChainConnectionConf::CosmosModules(_conf) => todo!()
+            ChainConnectionConf::CosmosModules(conf) => {
+                let indexer = Box::new(h_cosmos_modules::CosmosMailboxIndexer::new(
+                    conf,
+                ));
+                Ok(indexer as Box<dyn SequenceIndexer<HyperlaneMessage>>)
+            }
         }
         .context(ctx)
     }

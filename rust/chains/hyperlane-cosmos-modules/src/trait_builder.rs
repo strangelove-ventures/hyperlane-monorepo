@@ -4,16 +4,16 @@ use url::Url;
 /// Cosmos connection configuration
 #[derive(Debug, Clone)]
 pub struct ConnectionConf {
-    // TODO: more settings?
-    #[allow(dead_code)]
-    url: Url,
+    // TODO: remove pub after unit testing complete
+    pub grpc_url: String,
+    pub rpc_url: String,
 }
 
 /// Raw Cosmos connection configuration used for better deserialization errors.
 #[derive(Debug, serde::Deserialize)]
-pub struct RawConnectionConf {
-    // TODO: more settings?
-    url: Option<String>,
+pub struct DeprecatedRawConnectionConf {
+    pub grpc_url: Option<String>,
+    pub rpc_url: Option<String>,
 }
 
 /// An error type when parsing a connection configuration.
@@ -27,23 +27,33 @@ pub enum ConnectionConfError {
     InvalidConnectionUrl(String, url::ParseError),
 }
 
-impl FromRawConf<RawConnectionConf> for ConnectionConf {
+impl FromRawConf<DeprecatedRawConnectionConf> for ConnectionConf {
     fn from_config_filtered(
-        raw: RawConnectionConf,
+        raw: DeprecatedRawConnectionConf,
         cwp: &ConfigPath,
         _filter: (),
     ) -> ConfigResult<Self> {
         use ConnectionConfError::*;
-        match raw {
-            RawConnectionConf { url: Some(url) } => Ok(Self {
-                url: url
-                    .parse()
-                    .map_err(|e| InvalidConnectionUrl(url, e))
-                    .into_config_result(|| cwp.join("url"))?,
-            }),
-            RawConnectionConf { url: None } => {
-                Err(MissingConnectionUrl).into_config_result(|| cwp.join("url"))
-            }
-        }
+
+        let grpc_url = raw
+            .grpc_url
+            .ok_or(MissingConnectionUrl)
+            .into_config_result(|| cwp.join("grpc_url"))?;
+        let rpc_url = raw
+            .rpc_url
+            .ok_or(MissingConnectionUrl)
+            .into_config_result(|| cwp.join("rpc_url"))?;
+        println!("cosmos modules settings: from_config_filtered");
+        println!("grpc_url: {grpc_url}, rpc_url: {rpc_url}");
+        Ok(ConnectionConf { grpc_url, rpc_url })
+    }
+}
+
+impl ConnectionConf {
+    pub fn get_grpc_url(&self) -> String {
+        self.grpc_url.clone()
+    }
+    pub fn get_rpc_url(&self) -> String {
+        self.rpc_url.clone()
     }
 }
