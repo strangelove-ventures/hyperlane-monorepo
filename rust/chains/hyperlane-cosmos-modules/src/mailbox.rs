@@ -45,7 +45,7 @@ impl CosmosMailbox {
         Ok(Self {
             domain,
             grpc_url: conf.get_grpc_url(),
-            mailbox_address: H256::default(),
+            mailbox_address: H256::from_slice(hex::decode("000000000000000000000000cc2a110c8df654a38749178a04402e88f65091d3").unwrap().as_ref()),
         })
     }
 }
