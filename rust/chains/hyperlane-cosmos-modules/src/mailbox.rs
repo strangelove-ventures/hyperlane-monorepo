@@ -52,13 +52,13 @@ impl CosmosMailbox {
 
 impl HyperlaneContract for CosmosMailbox {
     fn address(&self) -> H256 {
-        todo!()
+        self.mailbox_address
     }
 }
 
 impl HyperlaneChain for CosmosMailbox {
     fn domain(&self) -> &HyperlaneDomain {
-        todo!()
+        &self.domain
     }
 
     fn provider(&self) -> Box<dyn HyperlaneProvider> {
@@ -96,6 +96,7 @@ impl Mailbox for CosmosMailbox {
                     branches[i] = H256::zero();
                 }
             });
+        println!("tree: count: {:?}", response.count);
         Ok(IncrementalMerkle::new(
             branches,
             response.count.try_into().unwrap(),
@@ -110,7 +111,9 @@ impl Mailbox for CosmosMailbox {
         let request = tonic::Request::new(QueryCurrentTreeMetadataRequest {});
         let response = client.current_tree_metadata(request).await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
-        Ok(response.into_inner().count)
+        let count = response.into_inner().count;
+        println!("count: {:?}", count);
+        Ok(count)
     }
 
     // Relayer only
@@ -128,6 +131,7 @@ impl Mailbox for CosmosMailbox {
         let response = client.current_tree_metadata(request).await
             .map_err(|e| ChainCommunicationError::from_other(e))?.into_inner();
         let root: [u8; 32] = response.root.try_into().unwrap();
+        println!("latest_checkpoint: index: {:?}", response.count);
         Ok(Checkpoint { 
             mailbox_address: self.mailbox_address,
             mailbox_domain: self.domain.id(),
@@ -253,6 +257,7 @@ impl CosmosMailboxIndexer {
                         transaction_index: tx_idx as u64,
                         log_index: U256::from(event_idx),
                     };
+                    println!("meta: block_num: {:?}, transaction_idx: {:?}", block_num, tx_idx);
                     result.push((msg, meta));
                 }
             }
@@ -282,6 +287,7 @@ impl Indexer<HyperlaneMessage> for CosmosMailboxIndexer {
             .latest_block()
             .await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
+        println!("get_finalized_block_number: {:?}", result.block.header.height.value() as u32);
         Ok(result.block.header.height.value() as u32)
     }
 }
@@ -300,6 +306,7 @@ impl SequenceIndexer<HyperlaneMessage> for CosmosMailboxIndexer {
             0 => None,
             _ => Some(resp_count)
         };
+        println!("sequence_and_tip: count: {:?}, tip: {:?}", count, tip);
         Ok((count, tip))
     }
 }
