@@ -259,7 +259,6 @@ fn parse_chain(chain: ValueParser, name: &str) -> ConfigResult<ChainConf> {
                 .end()
                 .map(|url| ChainConnectionConf::Sealevel(h_sealevel::ConnectionConf { url }))
         }
-        HyperlaneDomainProtocol::Cosmos => todo!(),
         HyperlaneDomainProtocol::CosmosModules => {
             let grpc_url = chain
                 .chain(&mut err)
