@@ -25,6 +25,7 @@ url.workspace = true
 tonic = "0.10.0"
 prost = "0.12.1"
 cosmrs = { version = "0.14.0", features = ["cosmwasm", "tokio", "grpc", "rpc"] }
+sha256 = "1.1.4"
 
 hyperlane-core = { path = "../../hyperlane-core" }
 num-traits.workspace = true

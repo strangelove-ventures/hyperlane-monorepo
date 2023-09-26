@@ -21,7 +21,12 @@ use hyperlane_core::{
 use grpc_client::query_client::QueryClient;
 use grpc_client::{QueryCurrentTreeMetadataRequest, QueryCurrentTreeMetadataResponse, QueryCurrentTreeRequest, QueryCurrentTreeResponse};
 use cosmrs::rpc::client::{Client, CompatMode, HttpClient, HttpClientUrl};
-use cosmrs::tendermint::abci::EventAttribute;
+use cosmrs::tendermint::{
+    abci::EventAttribute,
+    hash::Algorithm,
+    Hash,
+};
+use sha256::digest;
 
 use crate::ConnectionConf;
 
@@ -40,11 +45,11 @@ impl CosmosMailbox {
     pub fn new(
         conf: &ConnectionConf,
         domain: HyperlaneDomain,
-        //grpc_address: String,
     ) -> ChainResult<Self> {
         Ok(Self {
             domain,
             grpc_url: conf.get_grpc_url(),
+            // TODO: pass in on mailbox creation
             mailbox_address: H256::from_slice(hex::decode("000000000000000000000000cc2a110c8df654a38749178a04402e88f65091d3").unwrap().as_ref()),
         })
     }
@@ -136,7 +141,7 @@ impl Mailbox for CosmosMailbox {
             mailbox_address: self.mailbox_address,
             mailbox_domain: self.domain.id(),
             root: H256::from(root),
-            index: response.count
+            index: response.count-1
         })
     }
 
@@ -240,24 +245,43 @@ impl CosmosMailboxIndexer {
         let block = client.block(block_num).await.map_err(|e| ChainCommunicationError::from_other(e))?;
         let block_result = client.block_results(block_num).await.map_err(|e| ChainCommunicationError::from_other(e))?;
         let tx_results = block_result.txs_results;
+
+        let tx_hash_vec: Vec<H256> = block
+            .block
+            .data
+            .into_iter()
+            .map(|tx| {
+                H256::from_slice(
+                    Hash::from_bytes(
+                        Algorithm::Sha256,
+                        hex::decode(digest(tx.as_slice())).unwrap().as_slice(),
+                    )
+                    .unwrap()
+                    .as_bytes(),
+                )
+            })
+            .collect();
         
         let mut result: Vec<(HyperlaneMessage, LogMeta)> = vec![];
         if let Some(tx_results) = tx_results {
             for (tx_idx, tx) in tx_results.iter().enumerate() {
+                let tx_hash = tx_hash_vec[tx_idx];
                 for (event_idx, event) in tx.events.clone().iter().enumerate() {
                     if event.kind.as_str() != "dispatch" {
                         continue;
                     }
                     let msg = self.parse_event(event.attributes.clone())?;
                     let meta = LogMeta {
-                        address: H256::default(),
+                        // TODO: pass in on index creation
+                        address: H256::from_slice(hex::decode("000000000000000000000000cc2a110c8df654a38749178a04402e88f65091d3").unwrap().as_ref()),
                         block_number: block_num as u64,
                         block_hash: H256::from_slice(block.block_id.hash.as_bytes()),
-                        transaction_id: H512::from_slice(tx.data.as_ref()),
+                        transaction_id: H512::from(tx_hash),
                         transaction_index: tx_idx as u64,
                         log_index: U256::from(event_idx),
                     };
                     println!("meta: block_num: {:?}, transaction_idx: {:?}", block_num, tx_idx);
+                    println!("tx_hash: {:?}", hex::encode(tx_hash.0));
                     result.push((msg, meta));
                 }
             }
