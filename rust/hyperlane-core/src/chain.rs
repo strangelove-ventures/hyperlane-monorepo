@@ -86,6 +86,10 @@ pub enum KnownHyperlaneDomain {
     Test2 = 13372,
     /// Test3 local chain
     Test3 = 13373,
+    /// Simd1 local cosmos chain
+    Simd1 = 23456,
+    /// Simd2 local cosmos chain
+    Simd2 = 34567,
 
     /// Fuel1 local chain
     FuelTest1 = 13374,
@@ -157,8 +161,8 @@ pub enum HyperlaneDomainProtocol {
     Fuel,
     /// A Sealevel-based chain type which uses hyperlane-sealevel.
     Sealevel,
-    /// A chain built with the Cosmos SDK which uses hyperlane-cosmos.
-    Cosmos,
+    /// A chain built with the Cosmos SDK/hyperlane module which uses hyperlane-cosmos-modules.
+    CosmosModules,
 }
 
 impl HyperlaneDomainProtocol {
@@ -168,7 +172,7 @@ impl HyperlaneDomainProtocol {
             Ethereum => format!("{:?}", H160::from(addr)),
             Fuel => format!("{:?}", addr),
             Sealevel => format!("{:?}", addr),
-            Cosmos => format!("{:?}", addr),
+            CosmosModules => format!("{:?}", addr),
         }
     }
 }
@@ -192,7 +196,7 @@ impl KnownHyperlaneDomain {
                 Goerli, Mumbai, Fuji, ArbitrumGoerli, OptimismGoerli, BinanceSmartChainTestnet,
                 Alfajores, MoonbaseAlpha, Zksync2Testnet, Sepolia
             ],
-            LocalTestChain: [Test1, Test2, Test3, FuelTest1, SealevelTest1, SealevelTest2],
+            LocalTestChain: [Test1, Test2, Test3, FuelTest1, SealevelTest1, SealevelTest2, Simd1, Simd2],
         })
     }
 
@@ -207,6 +211,7 @@ impl KnownHyperlaneDomain {
             ],
             HyperlaneDomainProtocol::Fuel: [FuelTest1],
             HyperlaneDomainProtocol::Sealevel: [SealevelTest1, SealevelTest2],
+            HyperlaneDomainProtocol::CosmosModules: [Simd1, Simd2],
         })
     }
 }
@@ -366,7 +371,7 @@ impl HyperlaneDomain {
         use HyperlaneDomainProtocol::*;
         let protocol = self.domain_protocol();
         many_to_one!(match protocol {
-            IndexMode::Block: [Ethereum, Cosmos],
+            IndexMode::Block: [Ethereum, CosmosModules],
             IndexMode::Sequence : [Sealevel, Fuel],
         })
     }

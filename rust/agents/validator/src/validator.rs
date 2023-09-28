@@ -238,6 +238,7 @@ impl Validator {
         let validators: [H256; 1] = [self.signer.eth_address().into()];
         loop {
             info!("Checking for validator announcement");
+            break; // Break here, to bypass val announcement check for cosmos-modules
             if let Some(locations) = self
                 .validator_announce
                 .get_announced_storage_locations(&validators)

@@ -6,7 +6,7 @@ WORKDIR /usr/src
 # 1a: Prepare for static linking
 RUN apt-get update && \
     apt-get dist-upgrade -y && \
-    apt-get install -y musl-tools clang && \
+    apt-get install -y musl-tools clang protobuf-compiler && \
     rustup target add x86_64-unknown-linux-musl
 
 # Add workspace to workdir 
