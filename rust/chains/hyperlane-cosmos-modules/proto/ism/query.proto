@@ -1,0 +1,17 @@
+syntax = "proto3";
+package hyperlane.ism.v1;
+
+import "google/protobuf/any.proto";
+
+// Query service for hyperlane ISM module
+service Query {
+  // Get current default multisig ISM for an origin
+  rpc OriginsDefaultIsm(QueryOriginsDefaultIsmRequest)
+      returns (QueryOriginsDefaultIsmResponse);
+}
+
+// QueryDefaultIsmRequest is the request type for the DefaultIsm RPC method.
+message QueryOriginsDefaultIsmRequest { uint32 origin = 1; }
+
+// QueryDefaultIsmResponse is the response type for the DefaultIsm RPC method.
+message QueryOriginsDefaultIsmResponse { google.protobuf.Any default_ism = 1; }

@@ -28,7 +28,7 @@ use cosmrs::tendermint::{
 };
 use sha256::digest;
 
-use crate::ConnectionConf;
+use crate::{ConnectionConf, CosmosProvider};
 
 pub mod grpc_client {
     tonic::include_proto!("hyperlane.mailbox.v1");
@@ -67,7 +67,7 @@ impl HyperlaneChain for CosmosMailbox {
     }
 
     fn provider(&self) -> Box<dyn HyperlaneProvider> {
-        todo!()
+        Box::new(CosmosProvider::new(self.domain.clone()))
     }
 }
 
@@ -79,7 +79,6 @@ impl Debug for CosmosMailbox {
 
 #[async_trait]
 impl Mailbox for CosmosMailbox {
-    // Val requirement
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn tree(&self, lag: Option<NonZeroU64>) -> ChainResult<IncrementalMerkle> {
         let mut client = QueryClient::connect(self.grpc_url.clone()).await
@@ -108,7 +107,6 @@ impl Mailbox for CosmosMailbox {
         ))
     }
 
-    // Val requirement
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn count(&self, lag: Option<NonZeroU64>) -> ChainResult<u32> {
         let mut client = QueryClient::connect(self.grpc_url.clone()).await
@@ -121,13 +119,11 @@ impl Mailbox for CosmosMailbox {
         Ok(count)
     }
 
-    // Relayer only
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn delivered(&self, id: H256) -> ChainResult<bool> {
         todo!()
     }
 
-    // Val requirement
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn latest_checkpoint(&self, lag: Option<NonZeroU64>) -> ChainResult<Checkpoint> {
         let mut client = QueryClient::connect(self.grpc_url.clone()).await
@@ -145,16 +141,14 @@ impl Mailbox for CosmosMailbox {
         })
     }
 
-    // not required
     #[instrument(err, ret, skip(self))]
     async fn default_ism(&self) -> ChainResult<H256> {
-        todo!()
+        Ok(H256::default()) // Change this to the acc addr of "hyperlane-ism" module
     }
 
-    // relayer only
     #[instrument(err, ret, skip(self))]
     async fn recipient_ism(&self, recipient: H256) -> ChainResult<H256> {
-        todo!()
+        self.default_ism().await // Return default ism until non-default ISMs are supported
     }
 
     // relayer only

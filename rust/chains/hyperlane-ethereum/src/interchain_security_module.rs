@@ -99,7 +99,7 @@ where
     M: Middleware + 'static,
 {
     #[instrument]
-    async fn module_type(&self) -> ChainResult<ModuleType> {
+    async fn module_type(&self, _origin: u32) -> ChainResult<ModuleType> {
         let module = self.contract.module_type().call().await?;
         if let Some(module_type) = ModuleType::from_u8(module) {
             Ok(module_type)

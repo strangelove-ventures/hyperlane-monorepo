@@ -6,15 +6,25 @@ use hyperlane_core::{
 
 /// A wrapper around a cosmos provider to get generic blockchain information.
 #[derive(Debug)]
-pub struct CosmosProvider {}
+pub struct CosmosProvider {
+    domain: HyperlaneDomain,
+}
+
+impl CosmosProvider {
+    pub fn new(domain: HyperlaneDomain) -> Self {
+        Self { domain }
+    }
+}
 
 impl HyperlaneChain for CosmosProvider {
     fn domain(&self) -> &HyperlaneDomain {
-        todo!()
+        &self.domain
     }
 
     fn provider(&self) -> Box<dyn HyperlaneProvider> {
-        todo!()
+        Box::new(CosmosProvider {
+            domain: self.domain.clone(),
+        })
     }
 }
 
@@ -29,6 +39,6 @@ impl HyperlaneProvider for CosmosProvider {
     }
 
     async fn is_contract(&self, address: &H256) -> ChainResult<bool> {
-        todo!()
+        Ok(true) // Non-contracts will be supported, so this is a nop
     }
 }

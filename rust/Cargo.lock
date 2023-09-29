@@ -3947,6 +3947,7 @@ dependencies = [
  "num 0.4.1",
  "num-traits",
  "prost 0.12.1",
+ "prost-types 0.12.1",
  "reqwest",
  "serde",
  "serde_json",

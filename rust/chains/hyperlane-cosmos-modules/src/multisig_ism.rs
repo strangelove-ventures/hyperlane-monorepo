@@ -1,22 +1,34 @@
 use async_trait::async_trait;
 use hyperlane_core::{
-    ChainResult, HyperlaneChain, HyperlaneContract, HyperlaneDomain, HyperlaneMessage,
+    ChainResult, ContractLocator, HyperlaneChain, HyperlaneContract, HyperlaneDomain, HyperlaneMessage,
     HyperlaneProvider, MultisigIsm, H256,
 };
 
 /// A reference to a MultisigIsm contract on some Cosmos chain
 #[derive(Debug)]
-pub struct CosmosMultisigIsm {}
+pub struct CosmosMultisigIsm {
+    domain: HyperlaneDomain,
+    address: H256,
+}
+
+impl CosmosMultisigIsm {
+    pub fn new(locator: ContractLocator) -> Self {
+        Self {
+            domain: locator.domain.clone(),
+            address: locator.address,
+        }
+    }
+}
 
 impl HyperlaneContract for CosmosMultisigIsm {
     fn address(&self) -> H256 {
-        todo!()
+        self.address
     }
 }
 
 impl HyperlaneChain for CosmosMultisigIsm {
     fn domain(&self) -> &HyperlaneDomain {
-        todo!()
+        &self.domain
     }
 
     fn provider(&self) -> Box<dyn HyperlaneProvider> {
