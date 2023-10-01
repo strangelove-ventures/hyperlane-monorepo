@@ -4,9 +4,9 @@
 // TODO(nix): Remove once fully implemented
 #![allow(unused)]
 
-pub use interchain_security_module::*;
+pub use interchain_security_module::CosmosInterchainSecurityModule;
 pub use mailbox::*;
-pub use multisig_ism::*;
+pub use multisig_ism::CosmosMultisigIsm;
 pub use provider::*;
 pub use trait_builder::*;
 pub use validator_announce::*;
