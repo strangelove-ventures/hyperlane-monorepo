@@ -2,11 +2,12 @@ use async_trait::async_trait;
 use hyperlane_core::{
     ChainCommunicationError,
     ChainResult, ContractLocator, HyperlaneChain, HyperlaneContract, HyperlaneDomain, HyperlaneMessage,
-    HyperlaneProvider, MultisigIsm, H256,
+    HyperlaneProvider, MultisigIsm, H160, H256,
 };
 
 use crate::{
     ConnectionConf,
+    CosmosProvider,
     interchain_security_module::{
         LEGACY_MULTISIG_TYPE_URL,
         MERKLE_ROOT_MULTISIG_TYPE_URL,
@@ -29,7 +30,7 @@ pub mod grpc_client {
 pub struct CosmosMultisigIsm {
     domain: HyperlaneDomain,
     address: H256,
-    grpc_url: String,
+    provider: Box<CosmosProvider>,
 }
 
 impl CosmosMultisigIsm {
@@ -37,10 +38,11 @@ impl CosmosMultisigIsm {
         conf: &ConnectionConf,
         locator: ContractLocator
     ) -> Self {
+        let provider = CosmosProvider::new(conf.clone(), locator.domain.clone(), locator.address);
         Self {
             domain: locator.domain.clone(),
             address: locator.address,
-            grpc_url: conf.get_grpc_url(),
+            provider: Box::new(provider),
         }
     }
 }
@@ -72,11 +74,13 @@ fn return_vals_and_threshold(vals: Vec<String>, threshold: u32) -> ChainResult<(
     let vals_h256 = vals
         .into_iter()
         .map(|val| {
-            H256::from_slice(
-                hex::decode(val.trim_start_matches("0x"))
-                    .map_err(|e| ChainCommunicationError::from_other(e))
-                    .unwrap()
-                    .as_slice()
+            H256::from(
+                H160::from_slice(
+                    hex::decode(val.trim_start_matches("0x"))
+                        .map_err(|e| ChainCommunicationError::from_other(e))
+                        .unwrap()
+                        .as_slice()
+                )
             )
         })
         .collect();
@@ -108,12 +112,45 @@ impl MultisigIsm for CosmosMultisigIsm {
         &self,
         message: &HyperlaneMessage,
     ) -> ChainResult<(Vec<H256>, u8)> {
-        let mut client = QueryClient::connect(self.grpc_url.clone()).await
-            .map_err(|e| ChainCommunicationError::from_other(e))?;
-        let request = tonic::Request::new(QueryOriginsDefaultIsmRequest { origin: message.origin });
-        let response = client.origins_default_ism(request).await
-            .map_err(|e| ChainCommunicationError::from_other(e))?.into_inner();
-        
+        let response = self.provider.query_origins_default_ism(message.origin).await?;
         proto_to_module_type(response.default_ism.unwrap())
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hyperlane_core::{HyperlaneDomainType, HyperlaneDomainProtocol};
+
+    #[tokio::test]
+    async fn test_module_type() {
+        let ism = CosmosMultisigIsm::new(
+            &ConnectionConf{
+                grpc_url: "http://127.0.0.1:45795".to_string(),
+                rpc_url: "".to_string(),
+            },
+            ContractLocator { 
+                domain: &HyperlaneDomain::Unknown {
+                    domain_id: 0,
+                    domain_name: "CosmosTest".to_string(),
+                    domain_type: HyperlaneDomainType::LocalTestChain,
+                    domain_protocol: HyperlaneDomainProtocol::Ethereum,
+                },
+                address: H256::default(),
+            },
+        );
+        let val_and_thresh = ism.validators_and_threshold(
+            &HyperlaneMessage { 
+                version: 1,
+                nonce: 0,
+                origin: 1,
+                sender: H256::default(),
+                destination: 2,
+                recipient: H256::default(),
+                body: vec!(),
+            }).await.unwrap();
+        assert_eq!(val_and_thresh.1, 2);
+        assert_ne!(val_and_thresh.0.first().unwrap(), val_and_thresh.0.first().unwrap())
     }
 }

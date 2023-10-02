@@ -142,7 +142,7 @@ impl ChainConf {
                     .map_err(Into::into)
             }
             ChainConnectionConf::CosmosModules(conf) => {
-                h_cosmos_modules::CosmosMailbox::new(conf, self.domain.clone())
+                h_cosmos_modules::CosmosMailbox::new(conf, locator)
                     .map(|m| Box::new(m) as Box<dyn Mailbox>)
                     .map_err(Into::into)
             }
@@ -179,6 +179,7 @@ impl ChainConf {
             ChainConnectionConf::CosmosModules(conf) => {
                 let indexer = Box::new(h_cosmos_modules::CosmosMailboxIndexer::new(
                     conf,
+                    locator,
                 ));
                 Ok(indexer as Box<dyn SequenceIndexer<HyperlaneMessage>>)
             }
