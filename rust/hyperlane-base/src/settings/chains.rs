@@ -472,6 +472,10 @@ impl ChainConf {
         self.signer().await
     }
 
+    async fn cosmos_signer(&self) -> Result<Option<h_cosmos_modules::Signer>> {
+        self.signer().await
+    }
+
     /// Get a clone of the ethereum metrics conf with correctly configured
     /// contract information.
     fn metrics_conf(
