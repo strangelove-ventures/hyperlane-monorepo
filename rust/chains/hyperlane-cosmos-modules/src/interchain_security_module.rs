@@ -6,7 +6,7 @@ use hyperlane_core::{
 };
 
 use crate::{
-    ConnectionConf, CosmosProvider,
+    ConnectionConf, CosmosProvider, Signer,
 };
 
 pub const LEGACY_MULTISIG_TYPE_URL: &str = "/hyperlane.ism.v1.LegacyMultiSig";
@@ -21,8 +21,8 @@ pub struct CosmosInterchainSecurityModule {
 }
 
 impl CosmosInterchainSecurityModule {
-    pub fn new(conf: &ConnectionConf, locator: ContractLocator) -> Self {
-        let provider = CosmosProvider::new(conf.clone(), locator.domain.clone(), locator.address);
+    pub fn new(conf: &ConnectionConf, locator: ContractLocator, signer: Signer) -> Self {
+        let provider = CosmosProvider::new(conf.clone(), locator.domain.clone(), locator.address, signer);
         Self {
             domain: locator.domain.clone(),
             address: locator.address,
@@ -84,6 +84,7 @@ mod tests {
             &ConnectionConf{
                 grpc_url: "http://127.0.0.1:45897".to_string(),
                 rpc_url: "".to_string(),
+                chain_id: "".to_string(),
             },
             ContractLocator { 
                 domain: &HyperlaneDomain::Unknown {
@@ -94,6 +95,7 @@ mod tests {
                 },
                 address: H256::default(),
             },
+            Signer::new("a011942e70462913d8e2f26a36d487c221dc0b4ca7fc502bd3490c84f98aa0cd".try_into().unwrap(), "cosmos".to_string()),
         );
         let module_type = ism.module_type(1).await.unwrap();
         assert_eq!(module_type, ModuleType::LegacyMultisig);

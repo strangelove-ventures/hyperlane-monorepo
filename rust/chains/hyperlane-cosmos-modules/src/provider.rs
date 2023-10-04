@@ -2,50 +2,89 @@ use async_trait::async_trait;
 
 use hyperlane_core::{
     BlockInfo, ChainCommunicationError, ChainResult, ContractLocator,
-    HyperlaneChain, HyperlaneDomain, HyperlaneProvider, TxnInfo, H256,
+    HyperlaneChain, HyperlaneDomain, HyperlaneMessage, HyperlaneProvider, 
+    RawHyperlaneMessage, TxnInfo, H256, U256,
 };
 
-use crate::ConnectionConf;
+use crate::{
+    ConnectionConf,
+    signers::Signer,
+};
 
-use mailbox_grpc_client::query_client::QueryClient as MailboxQueryClient;
-use mailbox_grpc_client::{QueryCurrentTreeMetadataRequest, QueryCurrentTreeMetadataResponse, QueryCurrentTreeRequest, QueryCurrentTreeResponse};
+use mailbox_grpc_client::{
+    query_client::QueryClient as MailboxQueryClient,
+    QueryCurrentTreeMetadataRequest, QueryCurrentTreeMetadataResponse, 
+    QueryCurrentTreeRequest, QueryCurrentTreeResponse,
+    MsgProcess,
+};
 use ism_grpc_client::{
     query_client::QueryClient as IsmQueryClient,
     QueryOriginsDefaultIsmRequest, QueryOriginsDefaultIsmResponse,
     LegacyMultiSig, MerkleRootMultiSig, MessageIdMultiSig,
 };
-use cosmrs::rpc::{
-    client::{Client, CompatMode, HttpClient, HttpClientUrl},
-    endpoint::{
-        block::Response as BlockResponse,
-        block_results::Response as BlockResultsResponse,
+use cosmrs::{
+    Amount, Coin,
+    crypto::secp256k1::SigningKey,
+    proto::{
+        cosmos::{
+            auth::v1beta1::{
+                BaseAccount,
+                query_client::QueryClient as QueryAccountClient, QueryAccountRequest,
+            },
+            base::abci::v1beta1::TxResponse,
+            tx::v1beta1::{
+                service_client::ServiceClient as TxServiceClient,
+                BroadcastMode, BroadcastTxRequest, SimulateRequest, SimulateResponse,
+            },
+        },
+        traits::Message as CosmrsMessage,
+        Any as CosmrsAny, ibc::core::client,
     },
+    rpc::{
+        client::{Client, CompatMode, HttpClient, HttpClientUrl},
+        endpoint::{
+            block::Response as BlockResponse,
+            block_results::Response as BlockResultsResponse,
+        },
+    },
+    tendermint::{
+        abci::EventAttribute,
+        hash::Algorithm,
+        Hash,
+    },
+    tx::{
+        Body, Fee, MessageExt, SignDoc, SignerInfo,
+    }
 };
-use cosmrs::tendermint::{
-    abci::EventAttribute,
-    hash::Algorithm,
-    Hash,
-};
+use prost::Message;
+use prost_types::Any;
+use std::str::FromStr;
+
 pub mod mailbox_grpc_client {
     tonic::include_proto!("hyperlane.mailbox.v1");
 }
 pub mod ism_grpc_client {
     tonic::include_proto!("hyperlane.ism.v1");
 }
+
+const DEFAULT_GAS_PRICE: f32 = 0.05;
+
 /// A wrapper around a cosmos provider to get generic blockchain information.
 #[derive(Debug)]
 pub struct CosmosProvider {
     conf: ConnectionConf,
     domain: HyperlaneDomain,
     address: H256,
+    signer: Signer,
 }
 
 impl CosmosProvider {
-    pub fn new(conf: ConnectionConf, domain: HyperlaneDomain, address: H256) -> Self {
+    pub fn new(conf: ConnectionConf, domain: HyperlaneDomain, address: H256, signer: Signer) -> Self {
         Self {
             conf,
             domain,
             address,
+            signer,
         }
     }
 
@@ -113,6 +152,74 @@ impl CosmosProvider {
         Ok(block_results)
     }
 
+    async fn account_query(&self, account: String) -> ChainResult<BaseAccount> {
+        let mut client = QueryAccountClient::connect(self.get_grpc_url()?).await.unwrap();
+
+        let request = QueryAccountRequest { address: account };
+        let response = client.account(request).await.unwrap().into_inner();
+
+        let account = BaseAccount::decode(response.account.unwrap().value.as_slice()).unwrap();
+        Ok(account)
+    }
+
+    async fn generate_raw_tx(&self, msgs: Vec<CosmrsAny>, gas_limit: Option<U256>) -> ChainResult<Vec<u8>> {
+        let account_info = self.account_query(self.signer.bech32_address().clone()).await?;
+
+        let private_key = SigningKey::from_slice(&self.signer.private_key()).unwrap();
+        let public_key = private_key.public_key();
+
+        let tx_body = Body::new(msgs, "", 900u16);
+        let signer_info = SignerInfo::single_direct(Some(public_key), account_info.sequence);
+
+        let gas_limit: u64 = gas_limit
+            .unwrap_or(U256::from_str("100000").unwrap())
+            .as_u64();
+
+        let auth_info = signer_info.auth_info(Fee::from_amount_and_gas(
+            Coin::new(
+                Amount::from((gas_limit as f32 * DEFAULT_GAS_PRICE) as u64),
+                format!("u{}", self.signer.prefix().clone()).as_str(),
+            )
+            .unwrap(),
+            gas_limit,
+        ));
+
+        // signing
+        let sign_doc = SignDoc::new(
+            &tx_body,
+            &auth_info,
+            &self.conf.get_chain_id().parse().unwrap(),
+            account_info.account_number,
+        )
+        .unwrap();
+
+        let tx_signed = sign_doc.sign(&private_key).unwrap();
+
+        Ok(tx_signed.to_bytes().unwrap())
+    }
+
+    pub async fn send_tx(&self, msg: CosmrsAny, gas_limit: Option<U256>) -> ChainResult<TxResponse> {
+        let msgs = vec![msg];
+
+        let tx_req = BroadcastTxRequest {
+            tx_bytes: self.generate_raw_tx(msgs, gas_limit).await?,
+            mode: BroadcastMode::Block as i32,
+        };
+        
+        let mut client = TxServiceClient::connect(self.get_grpc_url()?).await.unwrap();
+        let tx_res = client
+            .broadcast_tx(tx_req)
+            .await.unwrap()
+            .into_inner()
+            .tx_response
+            .unwrap();
+        if tx_res.code != 0 {
+            println!("TX_ERROR: {}", tx_res.raw_log)
+        }
+
+        Ok(tx_res)
+    }
+
 }
 
 impl HyperlaneChain for CosmosProvider {
@@ -125,6 +232,7 @@ impl HyperlaneChain for CosmosProvider {
             conf: self.conf.clone(),
             domain: self.domain.clone(),
             address: self.address.clone(),
+            signer: self.signer.clone(),
         })
     }
 }

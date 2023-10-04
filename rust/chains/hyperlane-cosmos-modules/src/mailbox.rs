@@ -16,16 +16,32 @@ use hyperlane_core::{
     utils::fmt_bytes, ChainCommunicationError,
     ChainResult, Checkpoint, ContractLocator, HyperlaneChain, HyperlaneContract, HyperlaneDomain, HyperlaneMessage,
     HyperlaneProvider, Indexer, LogMeta, Mailbox, SequenceIndexer, TxCostEstimate, TxOutcome, H256, H512, U256,
+    RawHyperlaneMessage,
 };
 
-use cosmrs::tendermint::{
-    abci::EventAttribute,
-    hash::Algorithm,
-    Hash,
+use cosmrs::{
+    tendermint::{
+        abci::EventAttribute,
+        hash::Algorithm,
+        Hash,
+    },
+    proto::{
+        traits::Message as CosmrsMessage,
+        Any as CosmrsAny,
+    },
 };
 use sha256::digest;
 
-use crate::{ConnectionConf, CosmosProvider};
+use crate::{ConnectionConf, CosmosProvider, Signer, };
+
+use mailbox_grpc_client::MsgProcess;
+use prost::Message;
+
+pub mod mailbox_grpc_client {
+    tonic::include_proto!("hyperlane.mailbox.v1");
+}
+
+const MSG_PROCESS_TYPE_URL: &str = "/hyperlane.mailbox.v1.MsgProcess";
 
 /// A reference to a Mailbox contract on some Cosmos chain
 pub struct CosmosMailbox {
@@ -33,20 +49,23 @@ pub struct CosmosMailbox {
     mailbox_address: H256,
     conf: ConnectionConf,
     provider: Box<CosmosProvider>,
+    signer: Signer,
 }
 
 impl CosmosMailbox {
     pub fn new(
         conf: &ConnectionConf,
         locator: ContractLocator,
+        signer: Signer,
     ) -> ChainResult<Self> {
-        let provider = CosmosProvider::new(conf.clone(), locator.domain.clone(), locator.address);
+        let provider = CosmosProvider::new(conf.clone(), locator.domain.clone(), locator.address, signer.clone());
         Ok(Self {
             domain: locator.domain.clone(),
             // TODO: pass in on mailbox creation
             mailbox_address: H256::from_slice(hex::decode("000000000000000000000000cc2a110c8df654a38749178a04402e88f65091d3").unwrap().as_ref()),
             conf: conf.clone(),
             provider: Box::new(provider),
+            signer,
         })
     }
 }
@@ -67,6 +86,7 @@ impl HyperlaneChain for CosmosMailbox {
             self.conf.clone(),
             self.domain.clone(),
             self.address().clone(),
+            self.signer.clone(),
         ))
     }
 }
@@ -147,7 +167,25 @@ impl Mailbox for CosmosMailbox {
         metadata: &[u8],
         tx_gas_limit: Option<U256>,
     ) -> ChainResult<TxOutcome> {
-        todo!()
+        let msg_hex = "0x".to_string() + &hex::encode(RawHyperlaneMessage::from(message));
+        let metadata_hex = "0x".to_string() + &hex::encode(metadata);
+
+        let msg = CosmrsAny {
+            type_url: MSG_PROCESS_TYPE_URL.to_string(),
+            value: MsgProcess {
+                    sender: self.signer.bech32_address().clone(),
+                    metadata: metadata_hex,
+                    message: msg_hex,
+                }.encode_to_vec(),
+        };
+
+        let response = self.provider.send_tx(msg, tx_gas_limit).await?;
+        Ok(TxOutcome {
+            transaction_id: H512::from(H256::from_slice(hex::decode(response.txhash).unwrap().as_slice())),
+            executed: response.code == 0,
+            gas_used: U256::from(response.gas_used),
+            gas_price: U256::from(response.gas_wanted),
+        })
     }
 
     //relayer only
@@ -173,8 +211,8 @@ pub struct CosmosMailboxIndexer {
 }
 
 impl CosmosMailboxIndexer {
-    pub fn new(conf: &ConnectionConf, locator: ContractLocator) -> Self {
-        let provider = CosmosProvider::new(conf.clone(), locator.domain.clone(), locator.address);
+    pub fn new(conf: &ConnectionConf, locator: ContractLocator, signer: Signer) -> Self {
+        let provider = CosmosProvider::new(conf.clone(), locator.domain.clone(), locator.address, signer);
         Self {
             provider: Box::new(provider),
         }
@@ -309,6 +347,7 @@ mod tests {
             &ConnectionConf{
                 grpc_url: "http://127.0.0.1:1234".to_string(),
                 rpc_url: "".to_string(),
+                chain_id: "".to_string(),
             },
             ContractLocator {
                 domain: &HyperlaneDomain::Unknown {
@@ -319,6 +358,7 @@ mod tests {
                 },
                 address: H256::default(),
             },
+            Signer::new("a011942e70462913d8e2f26a36d487c221dc0b4ca7fc502bd3490c84f98aa0cd".try_into().unwrap(), "cosmos".to_string()),
         ).unwrap();
 
         let count = mailbox.count(None).await.unwrap();
@@ -332,6 +372,7 @@ mod tests {
             &ConnectionConf{
                 grpc_url: "http://127.0.0.1:1234".to_string(),
                 rpc_url: "".to_string(),
+                chain_id: "".to_string(),
             },
             ContractLocator {
                 domain: &HyperlaneDomain::Unknown {
@@ -342,6 +383,7 @@ mod tests {
                 },
                 address: H256::default(),
             },
+            Signer::new("a011942e70462913d8e2f26a36d487c221dc0b4ca7fc502bd3490c84f98aa0cd".try_into().unwrap(), "cosmos".to_string()),
         ).unwrap();
 
         let im = mailbox.tree(None).await.unwrap();
@@ -354,6 +396,7 @@ mod tests {
             &ConnectionConf{
                 grpc_url: "http://127.0.0.1:1234".to_string(),
                 rpc_url: "".to_string(),
+                chain_id: "".to_string(),
             },
             ContractLocator {
                 domain: &HyperlaneDomain::Unknown {
@@ -364,6 +407,7 @@ mod tests {
                 },
                 address: H256::default(),
             },
+            Signer::new("a011942e70462913d8e2f26a36d487c221dc0b4ca7fc502bd3490c84f98aa0cd".try_into().unwrap(), "cosmos".to_string()),
         ).unwrap();
 
         let cp = mailbox.latest_checkpoint(None).await.unwrap();
@@ -376,6 +420,7 @@ mod tests {
             &ConnectionConf{
                 grpc_url: "".to_string(),
                 rpc_url: "http://127.0.0.1:1234".to_string(),
+                chain_id: "".to_string(),
             },
             ContractLocator {
                 domain: &HyperlaneDomain::Unknown {
@@ -386,6 +431,7 @@ mod tests {
                 },
                 address: H256::default(),
             },
+            Signer::new("a011942e70462913d8e2f26a36d487c221dc0b4ca7fc502bd3490c84f98aa0cd".try_into().unwrap(), "cosmos".to_string()),
         );
         let logs = indexer.fetch_logs(RangeInclusive::new(45, 48)).await.unwrap();
         assert_eq!(logs[0].0.origin, 12345);
@@ -397,6 +443,7 @@ mod tests {
             &ConnectionConf{
                 grpc_url: "".to_string(),
                 rpc_url: "http://127.0.0.1:1234".to_string(),
+                chain_id: "".to_string(),
             },
             ContractLocator {
                 domain: &HyperlaneDomain::Unknown {
@@ -407,6 +454,7 @@ mod tests {
                 },
                 address: H256::default(),
             },
+            Signer::new("a011942e70462913d8e2f26a36d487c221dc0b4ca7fc502bd3490c84f98aa0cd".try_into().unwrap(), "cosmos".to_string()),
         );
         let block_num = indexer.get_finalized_block_number().await.unwrap();
         assert_eq!(block_num, 10);

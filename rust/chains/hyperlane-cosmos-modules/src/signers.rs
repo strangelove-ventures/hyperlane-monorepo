@@ -28,6 +28,14 @@ impl Signer {
     pub fn bech32_address(&self) -> String {
         self.bech32_address.clone()
     }
+
+    pub fn private_key(&self) -> Vec<u8> {
+        self.private_key.clone()
+    }
+
+    pub fn prefix(&self) -> String {
+        self.prefix.clone()
+    }
 }
 
 fn derive_bech32_address(private_key: Vec<u8>, prefix: String) -> String {
@@ -51,9 +59,9 @@ mod tests {
 
     #[test]
     fn test_signer() {
-        let private_key = hex::decode("984e39bb0d8974432114adcfcbe99d5984e8ac052fa3bb6059f5a77a88ef9912").unwrap();
-        let prefix = "osmo".to_string();
+        let private_key = hex::decode("a011942e70462913d8e2f26a36d487c221dc0b4ca7fc502bd3490c84f98aa0cd").unwrap();
+        let prefix = "cosmos".to_string();
         let signer = Signer::new(private_key, prefix);
-        assert_eq!(signer.bech32_address(), "osmo109ns4u04l44kqdkvp876hukd3hxz8zzm7809el".to_string());
+        assert_eq!(signer.bech32_address(), "cosmos1h2r25vnegrp3j6qpqglrcuw54flcuwxlry8tnj".to_string());
     }
 }

@@ -12,7 +12,8 @@ use crate::{
         LEGACY_MULTISIG_TYPE_URL,
         MERKLE_ROOT_MULTISIG_TYPE_URL,
         MESSAGE_ID_MULTISIG_TYPE_URL,
-    }
+    },
+    Signer,
 };
 
 use grpc_client::{
@@ -36,9 +37,10 @@ pub struct CosmosMultisigIsm {
 impl CosmosMultisigIsm {
     pub fn new(
         conf: &ConnectionConf,
-        locator: ContractLocator
+        locator: ContractLocator,
+        signer: Signer,
     ) -> Self {
-        let provider = CosmosProvider::new(conf.clone(), locator.domain.clone(), locator.address);
+        let provider = CosmosProvider::new(conf.clone(), locator.domain.clone(), locator.address, signer);
         Self {
             domain: locator.domain.clone(),
             address: locator.address,
@@ -129,6 +131,7 @@ mod tests {
             &ConnectionConf{
                 grpc_url: "http://127.0.0.1:45795".to_string(),
                 rpc_url: "".to_string(),
+                chain_id: "".to_string(),
             },
             ContractLocator { 
                 domain: &HyperlaneDomain::Unknown {
@@ -139,6 +142,7 @@ mod tests {
                 },
                 address: H256::default(),
             },
+            Signer::new("a011942e70462913d8e2f26a36d487c221dc0b4ca7fc502bd3490c84f98aa0cd".try_into().unwrap(), "cosmos".to_string()),
         );
         let val_and_thresh = ism.validators_and_threshold(
             &HyperlaneMessage { 
