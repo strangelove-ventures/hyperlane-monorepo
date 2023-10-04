@@ -95,7 +95,11 @@ mod tests {
                 },
                 address: H256::default(),
             },
-            Signer::new("a011942e70462913d8e2f26a36d487c221dc0b4ca7fc502bd3490c84f98aa0cd".try_into().unwrap(), "cosmos".to_string()),
+            Signer::new(
+                hex::decode("a011942e70462913d8e2f26a36d487c221dc0b4ca7fc502bd3490c84f98aa0cd").unwrap(), 
+                "cosmos".to_string(),
+                "stake".to_string(),
+            ),
         );
         let module_type = ism.module_type(1).await.unwrap();
         assert_eq!(module_type, ModuleType::LegacyMultisig);

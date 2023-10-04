@@ -308,6 +308,7 @@ pub struct DeprecatedRawSignerConf {
     id: Option<String>,
     region: Option<String>,
     prefix: Option<String>,
+    base_denom: Option<String>,
 }
 
 /// Raw checkpoint syncer types
@@ -373,6 +374,10 @@ impl FromRawConf<DeprecatedRawSignerConf> for SignerConf {
                 prefix: raw
                     .prefix
                     .ok_or_else(|| eyre!("Missing `prefix` for CosmosKey signer"))
+                    .into_config_result(key_path)?,
+                base_denom: raw
+                    .base_denom
+                    .ok_or_else(|| eyre!("Missing `base_denom` for CosmosKey signer"))
                     .into_config_result(key_path)?,
             }),
             Some(t) => Err(eyre!("Unknown signer type `{t}`")).into_config_result(|| cwp + "type"),

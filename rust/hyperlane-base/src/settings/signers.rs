@@ -29,7 +29,7 @@ pub enum SignerConf {
         region: Region,
     },
     /// Cosmos key
-    CosmosKey { key: H256, prefix: String },
+    CosmosKey { key: H256, prefix: String, base_denom: String },
     /// Assume the local node will sign on RPC calls automatically
     #[default]
     Node,
@@ -120,8 +120,8 @@ impl BuildableWithSignerConf for hyperlane_cosmos_modules::Signer {
         Ok(match conf {
             SignerConf::HexKey { .. } => bail!("HexKey signer is not supported by cosmos"),
             SignerConf::Aws { .. } => bail!("Aws signer is not supported by cosmos"),
-            SignerConf::CosmosKey { key, prefix } => {
-                hyperlane_cosmos_modules::Signer::new(key.as_bytes().to_vec(), prefix.clone())
+            SignerConf::CosmosKey { key, prefix, base_denom } => {
+                hyperlane_cosmos_modules::Signer::new(key.as_bytes().to_vec(), prefix.clone(), base_denom.clone())
             }
             SignerConf::Node => bail!("Node signer is not supported by cosmos"),
         })

@@ -272,7 +272,13 @@ fn parse_chain(chain: ValueParser, name: &str) -> ConfigResult<ChainConf> {
                 .get_opt_key("rpc_url")
                 .parse_string()
                 .unwrap_or("").to_string();
-            Some(ChainConnectionConf::CosmosModules(h_cosmos_modules::ConnectionConf { grpc_url, rpc_url }))
+            let chain_id = chain
+                .chain(&mut err)
+                .get_opt_key("connection")
+                .get_opt_key("chain_id")
+                .parse_string()
+                .unwrap_or("").to_string();
+            Some(ChainConnectionConf::CosmosModules(h_cosmos_modules::ConnectionConf { grpc_url, rpc_url, chain_id }))
         },
     };
 

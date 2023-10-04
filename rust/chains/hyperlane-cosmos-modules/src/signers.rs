@@ -11,17 +11,19 @@ pub struct Signer {
     prefix: String,
     private_key: Vec<u8>,
     bech32_address: String,
+    base_denom: String,
 }
 
 impl Signer {
     /// create new signer
-    pub fn new(private_key: Vec<u8>, prefix: String) -> Self {
+    pub fn new(private_key: Vec<u8>, prefix: String, base_denom: String) -> Self {
         let bech32_address = derive_bech32_address(private_key.clone(), prefix.clone());
 
         Self {
             prefix,
             private_key,
             bech32_address,
+            base_denom,
         }
     }
 
@@ -35,6 +37,10 @@ impl Signer {
 
     pub fn prefix(&self) -> String {
         self.prefix.clone()
+    }
+
+    pub fn base_denom(&self) -> String {
+        self.base_denom.clone()
     }
 }
 
@@ -61,7 +67,7 @@ mod tests {
     fn test_signer() {
         let private_key = hex::decode("a011942e70462913d8e2f26a36d487c221dc0b4ca7fc502bd3490c84f98aa0cd").unwrap();
         let prefix = "cosmos".to_string();
-        let signer = Signer::new(private_key, prefix);
+        let signer = Signer::new(private_key, prefix, "stake".to_string());
         assert_eq!(signer.bech32_address(), "cosmos1h2r25vnegrp3j6qpqglrcuw54flcuwxlry8tnj".to_string());
     }
 }

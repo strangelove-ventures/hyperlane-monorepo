@@ -142,7 +142,8 @@ impl ChainConf {
                     .map_err(Into::into)
             }
             ChainConnectionConf::CosmosModules(conf) => {
-                h_cosmos_modules::CosmosMailbox::new(conf, locator)
+                let signer = self.cosmos_signer().await.context(ctx)?;
+                h_cosmos_modules::CosmosMailbox::new(conf, locator, signer.unwrap())
                     .map(|m| Box::new(m) as Box<dyn Mailbox>)
                     .map_err(Into::into)
             }
@@ -177,9 +178,11 @@ impl ChainConf {
                 Ok(indexer as Box<dyn SequenceIndexer<HyperlaneMessage>>)
             }
             ChainConnectionConf::CosmosModules(conf) => {
+                let signer = self.cosmos_signer().await.context(ctx)?;
                 let indexer = Box::new(h_cosmos_modules::CosmosMailboxIndexer::new(
                     conf,
                     locator,
+                    signer.unwrap(),
                 ));
                 Ok(indexer as Box<dyn SequenceIndexer<HyperlaneMessage>>)
             }
@@ -338,7 +341,15 @@ impl ChainConf {
                 ));
                 Ok(ism as Box<dyn InterchainSecurityModule>)
             }
-            ChainConnectionConf::CosmosModules(_conf) => todo!()
+            ChainConnectionConf::CosmosModules(conf) => {
+                let signer = self.cosmos_signer().await.context(ctx)?;
+                let ism = Box::new(h_cosmos_modules::CosmosInterchainSecurityModule::new(
+                    conf,
+                    locator,
+                    signer.unwrap(),
+                ));
+                Ok(ism as Box<dyn InterchainSecurityModule>)
+            }
         }
         .context(ctx)
     }
@@ -364,7 +375,15 @@ impl ChainConf {
                 let ism = Box::new(h_sealevel::SealevelMultisigIsm::new(conf, locator, keypair));
                 Ok(ism as Box<dyn MultisigIsm>)
             }
-            ChainConnectionConf::CosmosModules(_conf) => todo!()
+            ChainConnectionConf::CosmosModules(conf) => {
+                let signer = self.cosmos_signer().await.context(ctx)?;
+                let ism = Box::new(h_cosmos_modules::CosmosMultisigIsm::new(
+                    conf,
+                    locator,
+                    signer.unwrap(),
+                ));
+                Ok(ism as Box<dyn MultisigIsm>)
+            }
         }
         .context(ctx)
     }

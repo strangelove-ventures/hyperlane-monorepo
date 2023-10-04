@@ -172,13 +172,13 @@ impl CosmosProvider {
         let signer_info = SignerInfo::single_direct(Some(public_key), account_info.sequence);
 
         let gas_limit: u64 = gas_limit
-            .unwrap_or(U256::from_str("100000").unwrap())
+            .unwrap_or(U256::from_str("300000").unwrap())
             .as_u64();
 
         let auth_info = signer_info.auth_info(Fee::from_amount_and_gas(
             Coin::new(
                 Amount::from((gas_limit as f32 * DEFAULT_GAS_PRICE) as u64),
-                format!("u{}", self.signer.prefix().clone()).as_str(),
+                format!("{}", self.signer.base_denom().clone()).as_str(),
             )
             .unwrap(),
             gas_limit,
@@ -203,7 +203,7 @@ impl CosmosProvider {
 
         let tx_req = BroadcastTxRequest {
             tx_bytes: self.generate_raw_tx(msgs, gas_limit).await?,
-            mode: BroadcastMode::Block as i32,
+            mode: BroadcastMode::Sync as i32,
         };
         
         let mut client = TxServiceClient::connect(self.get_grpc_url()?).await.unwrap();
