@@ -15,6 +15,7 @@ use mailbox_grpc_client::{
     query_client::QueryClient as MailboxQueryClient,
     QueryCurrentTreeMetadataRequest, QueryCurrentTreeMetadataResponse, 
     QueryCurrentTreeRequest, QueryCurrentTreeResponse,
+    QueryMsgDeliveredRequest, QueryMsgDeliveredResponse,
     MsgProcess,
 };
 use ism_grpc_client::{
@@ -68,6 +69,7 @@ pub mod ism_grpc_client {
 }
 
 const DEFAULT_GAS_PRICE: f32 = 0.05;
+const DEFAULT_GAS_ADJUSTMENT: f32 = 1.25;
 
 /// A wrapper around a cosmos provider to get generic blockchain information.
 #[derive(Debug)]
@@ -102,6 +104,17 @@ impl CosmosProvider {
             .build()
             .map_err(|e| ChainCommunicationError::from_other(e))?;
         Ok(client)
+    }
+
+    pub async fn query_delivered(&self, id: H256) -> ChainResult<bool> {
+        let mut client = MailboxQueryClient::connect(self.get_grpc_url()?).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?;
+        let request = tonic::Request::new(QueryMsgDeliveredRequest {
+            message_id: id.as_bytes().to_vec(),
+        });
+        let response = client.msg_delivered(request).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?.into_inner();
+        Ok(response.delivered)
     }
 
     pub async fn query_current_tree(&self) -> ChainResult<QueryCurrentTreeResponse> {
@@ -162,6 +175,22 @@ impl CosmosProvider {
         Ok(account)
     }
 
+    async fn simulate_raw_tx(&self, msgs: Vec<CosmrsAny>, gas_limit: Option<U256>) -> ChainResult<SimulateResponse> {
+        let mut client = TxServiceClient::connect(self.get_grpc_url()?).await.unwrap();
+
+        let tx_bytes = self.generate_raw_tx(msgs, gas_limit).await?;
+        let sim_req = SimulateRequest { tx: None, tx_bytes };
+        let mut sim_res = client.simulate(sim_req).await.unwrap().into_inner();
+
+        // apply gas adjustment
+        sim_res.gas_info.as_mut().map(|v| {
+            v.gas_used = (v.gas_used as f32 * DEFAULT_GAS_ADJUSTMENT) as u64;
+            v
+        });
+
+        Ok(sim_res)
+    }
+
     async fn generate_raw_tx(&self, msgs: Vec<CosmrsAny>, gas_limit: Option<U256>) -> ChainResult<Vec<u8>> {
         let account_info = self.account_query(self.signer.bech32_address().clone()).await?;
 
@@ -218,6 +247,13 @@ impl CosmosProvider {
         }
 
         Ok(tx_res)
+    }
+
+    pub async fn simulate_tx(&self, msg: CosmrsAny) -> ChainResult<SimulateResponse> {
+        let msgs = vec![msg];
+
+        let response = self.simulate_raw_tx(msgs, None).await?;
+        Ok(response)
     }
 
 }
