@@ -248,7 +248,15 @@ impl ChainConf {
                 );
                 Ok(paymaster as Box<dyn InterchainGasPaymaster>)
             }
-            ChainConnectionConf::CosmosModules(_conf) => todo!()
+            ChainConnectionConf::CosmosModules(conf) => {
+                let signer = self.cosmos_signer().await.context(ctx)?;
+                let paymaster = Box::new(h_cosmos_modules::CosmosInterchainGasPaymaster::new(
+                    conf,
+                    locator,
+                    signer.unwrap(),
+                ));
+                Ok(paymaster as Box<dyn InterchainGasPaymaster>)
+            }
         }
         .context(ctx)
     }
@@ -282,7 +290,15 @@ impl ChainConf {
                 );
                 Ok(indexer as Box<dyn SequenceIndexer<InterchainGasPayment>>)
             }
-            ChainConnectionConf::CosmosModules(_conf) => todo!()
+            ChainConnectionConf::CosmosModules(conf) => {
+                let signer = self.cosmos_signer().await.context(ctx)?;
+                let indexer = Box::new(h_cosmos_modules::CosmosInterchainGasPaymasterIndexer::new(
+                    conf,
+                    locator,
+                    signer.unwrap(),
+                ));
+                Ok(indexer as Box<dyn SequenceIndexer<InterchainGasPayment>>)
+            }
         }
         .context(ctx)
     }

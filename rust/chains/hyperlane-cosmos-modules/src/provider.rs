@@ -179,6 +179,7 @@ impl CosmosProvider {
         let mut client = TxServiceClient::connect(self.get_grpc_url()?).await.unwrap();
 
         let tx_bytes = self.generate_raw_tx(msgs, gas_limit).await?;
+        #[allow(deprecated)]
         let sim_req = SimulateRequest { tx: None, tx_bytes };
         let mut sim_res = client.simulate(sim_req).await.unwrap().into_inner();
 

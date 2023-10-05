@@ -29,7 +29,14 @@ pub enum SignerConf {
         region: Region,
     },
     /// Cosmos key
-    CosmosKey { key: H256, prefix: String, base_denom: String },
+    CosmosKey { 
+        /// private key
+        key: H256,
+        /// chain's bech32 prefix
+        prefix: String,
+        /// chain's base denom, smallest unit
+        base_denom: String
+    },
     /// Assume the local node will sign on RPC calls automatically
     #[default]
     Node,

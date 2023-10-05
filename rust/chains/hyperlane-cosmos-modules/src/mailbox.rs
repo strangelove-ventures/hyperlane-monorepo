@@ -72,7 +72,7 @@ impl CosmosMailbox {
 
 impl HyperlaneContract for CosmosMailbox {
     fn address(&self) -> H256 {
-        self.mailbox_address
+        self.mailbox_address.clone()
     }
 }
 
