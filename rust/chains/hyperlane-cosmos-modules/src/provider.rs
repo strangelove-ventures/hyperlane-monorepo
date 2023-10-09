@@ -10,7 +10,10 @@ use crate::{
     ConnectionConf,
     signers::Signer,
 };
-
+use announce_grpc_client::{
+    query_client::QueryClient as AnnounceQueryClient,
+    GetAnnouncedStorageLocationsRequest, GetAnnouncedStorageLocationsResponse,
+};
 use mailbox_grpc_client::{
     query_client::QueryClient as MailboxQueryClient,
     QueryCurrentTreeMetadataRequest, QueryCurrentTreeMetadataResponse, 
@@ -68,6 +71,10 @@ pub mod ism_grpc_client {
     tonic::include_proto!("hyperlane.ism.v1");
 }
 
+pub mod announce_grpc_client {
+    tonic::include_proto!("hyperlane.announce.v1");
+}
+
 const DEFAULT_GAS_PRICE: f32 = 0.05;
 const DEFAULT_GAS_ADJUSTMENT: f32 = 1.25;
 
@@ -104,6 +111,18 @@ impl CosmosProvider {
             .build()
             .map_err(|e| ChainCommunicationError::from_other(e))?;
         Ok(client)
+    }
+
+    pub async fn query_announced_storage_locations(&self, validators: &[H256]) -> ChainResult<Vec<Vec<String>>> {
+        let validators_vec: Vec<Vec<u8>> = validators.iter().map(|v| v.as_bytes().to_vec()).collect();
+        let mut client = AnnounceQueryClient::connect(self.get_grpc_url()?).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?;
+        let request = tonic::Request::new(GetAnnouncedStorageLocationsRequest {
+            validator: validators_vec,
+        });
+        let response = client.get_announced_storage_locations(request).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?.into_inner();
+        Ok(response.metadata.iter().map(|v| v.metadata.clone()).collect())
     }
 
     pub async fn query_delivered(&self, id: H256) -> ChainResult<bool> {

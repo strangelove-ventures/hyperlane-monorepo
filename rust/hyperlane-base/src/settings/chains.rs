@@ -308,6 +308,7 @@ impl ChainConf {
         &self,
         metrics: &CoreMetrics,
     ) -> Result<Box<dyn ValidatorAnnounce>> {
+        let ctx = "Building validator announce";
         let locator = self.locator(self.addresses.validator_announce);
         match &self.connection {
             ChainConnectionConf::Ethereum(conf) => {
@@ -320,8 +321,13 @@ impl ChainConf {
                 let va = Box::new(h_sealevel::SealevelValidatorAnnounce::new(conf, locator));
                 Ok(va as Box<dyn ValidatorAnnounce>)
             }
-            ChainConnectionConf::CosmosModules(_conf) => {
-                let va = Box::new(h_cosmos_modules::CosmosValidatorAnnounce::new());
+            ChainConnectionConf::CosmosModules(conf) => {
+                let signer = self.cosmos_signer().await.context(ctx)?;
+                let va = Box::new(h_cosmos_modules::CosmosValidatorAnnounce::new(
+                    conf,
+                    locator,
+                    signer.unwrap(),
+                ));
                 Ok(va as Box<dyn ValidatorAnnounce>)
             }
         }

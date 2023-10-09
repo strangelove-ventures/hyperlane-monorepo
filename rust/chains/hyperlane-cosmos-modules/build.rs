@@ -1,6 +1,8 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
         .compile(&[
+            "proto/announce/query.proto",
+            "proto/announce/tx.proto",
             "proto/mailbox/query.proto",
             "proto/mailbox/tx.proto",
             "proto/ism/legacy_multisig.proto",
