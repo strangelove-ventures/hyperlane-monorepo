@@ -308,6 +308,7 @@ pub struct DeprecatedRawSignerConf {
     id: Option<String>,
     region: Option<String>,
     prefix: Option<String>,
+    #[serde(rename = "base_denom")]
     base_denom: Option<String>,
 }
 
