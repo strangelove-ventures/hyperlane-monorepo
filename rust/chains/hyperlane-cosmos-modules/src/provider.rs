@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use hyperlane_core::{
     BlockInfo, ChainCommunicationError, ChainResult, ContractLocator,
     HyperlaneChain, HyperlaneDomain, HyperlaneMessage, HyperlaneProvider, 
-    RawHyperlaneMessage, TxnInfo, H256, U256,
+    RawHyperlaneMessage, TxnInfo, H256, U256, H160,
 };
 
 use crate::{
@@ -114,7 +114,10 @@ impl CosmosProvider {
     }
 
     pub async fn query_announced_storage_locations(&self, validators: &[H256]) -> ChainResult<Vec<Vec<String>>> {
-        let validators_vec: Vec<Vec<u8>> = validators.iter().map(|v| v.as_bytes().to_vec()).collect();
+        let validators_vec: Vec<Vec<u8>> = validators.iter().map(|v| {
+            let v160 = H160::from(v.clone());
+            v160.as_bytes().to_vec()
+        }).collect();
         let mut client = AnnounceQueryClient::connect(self.get_grpc_url()?).await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
         let request = tonic::Request::new(GetAnnouncedStorageLocationsRequest {
