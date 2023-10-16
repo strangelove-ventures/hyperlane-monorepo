@@ -345,13 +345,8 @@ impl SequenceIndexer<HyperlaneMessage> for CosmosMailboxIndexer {
     async fn sequence_and_tip(&self) -> ChainResult<(Option<u32>, u32)> {
         let tip = self.get_finalized_block_number().await?;
         let response = self.provider.query_current_tree_metadata().await?;
-        let resp_count = response.count;
-        let count = match resp_count {
-            0 => None,
-            _ => Some(resp_count)
-        };
-        println!("sequence_and_tip: count: {:?}, tip: {:?}", count, tip);
-        Ok((count, tip))
+        println!("sequence_and_tip: count: {:?}, tip: {:?}", response.count, tip);
+        Ok((Some(response.count), tip))
     }
 }
 
