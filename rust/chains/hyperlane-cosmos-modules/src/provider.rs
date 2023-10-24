@@ -97,6 +97,10 @@ impl CosmosProvider {
         }
     }
 
+    pub fn get_address(&self) -> H256 {
+        self.address.clone()
+    }
+
     fn get_rpc_url(&self) -> ChainResult<String> {
         Ok(self.conf.get_rpc_url())
     }

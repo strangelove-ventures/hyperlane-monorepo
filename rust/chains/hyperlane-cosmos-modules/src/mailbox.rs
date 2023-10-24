@@ -61,8 +61,7 @@ impl CosmosMailbox {
         let provider = CosmosProvider::new(conf.clone(), locator.domain.clone(), locator.address, signer.clone());
         Ok(Self {
             domain: locator.domain.clone(),
-            // TODO: pass in on mailbox creation
-            mailbox_address: H256::from_slice(hex::decode("000000000000000000000000cc2a110c8df654a38749178a04402e88f65091d3").unwrap().as_ref()),
+            mailbox_address: provider.get_address(),
             conf: conf.clone(),
             provider: Box::new(provider),
             signer,
@@ -300,7 +299,7 @@ impl CosmosMailboxIndexer {
                     }
                     let msg = self.parse_event(event.attributes.clone())?;
                     let meta = LogMeta {
-                        address: H256::from_slice(hex::decode("000000000000000000000000cc2a110c8df654a38749178a04402e88f65091d3").unwrap().as_ref()),
+                        address: self.provider.get_address(),
                         block_number: block_num as u64,
                         block_hash: H256::from_slice(block.block_id.hash.as_bytes()),
                         transaction_id: H512::from(tx_hash),

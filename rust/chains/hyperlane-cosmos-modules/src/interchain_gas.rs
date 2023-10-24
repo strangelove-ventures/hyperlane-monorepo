@@ -91,6 +91,13 @@ impl CosmosInterchainGasPaymasterIndexer {
                 }
                 "payment" => res.payment = value.parse().unwrap(),
                 "amount" => res.gas_amount = value.parse().unwrap(),
+                "igpid" => {
+                    let id = H256::from_low_u64_be(value.parse().unwrap());
+                    if id != self.provider.get_address() {
+                        info!("Ignoring gas payment");
+                        return Err(ChainCommunicationError::from_other_str("ignore gas payment"));
+                    }
+                }
                 _ => {}
             }
         }
@@ -126,19 +133,20 @@ impl CosmosInterchainGasPaymasterIndexer {
                     if event.kind.as_str() != "payforgas" {
                         continue;
                     }
-                    // TODO: filter out IGP number/index
-                    let msg = self.parse_event(event.attributes.clone())?;
-                    let meta = LogMeta {
-                        address: H256::from_slice(hex::decode("000000000000000000000000cc2a110c8df654a38749178a04402e88f65091d3").unwrap().as_ref()),
-                        block_number: block_num as u64,
-                        block_hash: H256::from_slice(block.block_id.hash.as_bytes()),
-                        transaction_id: H512::from(tx_hash),
-                        transaction_index: tx_idx as u64,
-                        log_index: U256::from(event_idx),
-                    };
-                    println!("meta: block_num: {:?}, transaction_idx: {:?}", block_num, tx_idx);
-                    println!("tx_hash: {:?}", hex::encode(tx_hash.0));
-                    result.push((msg, meta));
+                    let wrapped_msg = self.parse_event(event.attributes.clone());
+                    if let Ok(msg) = wrapped_msg {
+                        let meta = LogMeta {
+                            address: self.provider.get_address(),
+                            block_number: block_num as u64,
+                            block_hash: H256::from_slice(block.block_id.hash.as_bytes()),
+                            transaction_id: H512::from(tx_hash),
+                            transaction_index: tx_idx as u64,
+                            log_index: U256::from(event_idx),
+                        };
+                        println!("meta: block_num: {:?}, transaction_idx: {:?}", block_num, tx_idx);
+                        println!("tx_hash: {:?}", hex::encode(tx_hash.0));
+                        result.push((msg, meta));
+                    }
                 }
             }
         }   

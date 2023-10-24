@@ -68,7 +68,7 @@ impl InterchainSecurityModule for CosmosInterchainSecurityModule {
         message: &HyperlaneMessage,
         metadata: &[u8],
     ) -> ChainResult<Option<U256>> {
-        Ok(Some(U256::zero())) // TODO
+        Ok(Some(U256::zero()))
     }
 }
 
