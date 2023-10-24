@@ -89,8 +89,8 @@ impl CosmosInterchainGasPaymasterIndexer {
                 "messageid" => {
                     res.message_id = H256::from_slice(hex::decode(value.trim_start_matches("0x")).unwrap().as_slice())
                 }
-                "payment" => res.payment = value.parse().unwrap(),
-                "amount" => res.gas_amount = value.parse().unwrap(),
+                "payment" => res.payment = U256::from_dec_str(value).unwrap(),
+                "amount" => res.gas_amount = U256::from_dec_str(value).unwrap(),
                 "igpid" => {
                     let id = H256::from_low_u64_be(value.parse().unwrap());
                     if id != self.provider.get_address() {
