@@ -300,7 +300,6 @@ impl CosmosMailboxIndexer {
                     }
                     let msg = self.parse_event(event.attributes.clone())?;
                     let meta = LogMeta {
-                        // TODO: pass in on index creation
                         address: H256::from_slice(hex::decode("000000000000000000000000cc2a110c8df654a38749178a04402e88f65091d3").unwrap().as_ref()),
                         block_number: block_num as u64,
                         block_hash: H256::from_slice(block.block_id.hash.as_bytes()),
@@ -345,7 +344,7 @@ impl SequenceIndexer<HyperlaneMessage> for CosmosMailboxIndexer {
     async fn sequence_and_tip(&self) -> ChainResult<(Option<u32>, u32)> {
         let tip = self.get_finalized_block_number().await?;
         let response = self.provider.query_current_tree_metadata().await?;
-        println!("sequence_and_tip: count: {:?}, tip: {:?}", response.count, tip);
+        println!("CosmosMailboxIndexer: sequence_and_tip: count: {:?}, tip: {:?}", response.count, tip);
         Ok((Some(response.count), tip))
     }
 }
