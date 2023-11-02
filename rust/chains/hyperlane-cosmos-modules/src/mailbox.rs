@@ -156,7 +156,7 @@ impl Mailbox for CosmosMailbox {
 
     #[instrument(err, ret, skip(self))]
     async fn recipient_ism(&self, recipient: H256) -> ChainResult<H256> {
-        self.default_ism().await // Return default ism until non-default ISMs are supported
+        self.provider.query_recipients_ism_id(recipient).await
     }
 
     // relayer only

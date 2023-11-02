@@ -34,6 +34,12 @@ message QueryMsgDeliveredRequest { bytes message_id = 1; }
 // QueryMsgDeliveredResponse is the response type if message was delivered
 message QueryMsgDeliveredResponse { bool delivered = 1; }
 
+// QueryRecipientsIsmIdRequest is the request type to get the ISM ID
+message QueryRecipientsIsmIdRequest { bytes recipient = 1; }
+
+// QueryRecipientsIsmIdResponse is the response type containing the ISM ID
+message QueryRecipientsIsmIdResponse { uint32 ism_id = 1; }
+
 // Query service for hyperlane mailbox module
 service Query {
   // Get current tree metadata
@@ -48,4 +54,7 @@ service Query {
   
   // Check if message was delivered
   rpc MsgDelivered(QueryMsgDeliveredRequest) returns (QueryMsgDeliveredResponse);
+
+  // Query ISM ID from recipient
+  rpc RecipientsIsmId(QueryRecipientsIsmIdRequest) returns (QueryRecipientsIsmIdResponse);
 }

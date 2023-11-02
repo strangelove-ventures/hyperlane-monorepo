@@ -19,10 +19,12 @@ use mailbox_grpc_client::{
     QueryCurrentTreeMetadataRequest, QueryCurrentTreeMetadataResponse, 
     QueryCurrentTreeRequest, QueryCurrentTreeResponse,
     QueryMsgDeliveredRequest, QueryMsgDeliveredResponse,
+    QueryRecipientsIsmIdRequest, QueryRecipientsIsmIdResponse,
     MsgProcess,
 };
 use ism_grpc_client::{
     query_client::QueryClient as IsmQueryClient,
+    QueryCustomIsmRequest, QueryCustomIsmResponse,
     QueryOriginsDefaultIsmRequest, QueryOriginsDefaultIsmResponse,
     LegacyMultiSig, MerkleRootMultiSig, MessageIdMultiSig,
 };
@@ -143,6 +145,17 @@ impl CosmosProvider {
         Ok(response.delivered)
     }
 
+    pub async fn query_recipients_ism_id(&self, recipient: H256) -> ChainResult<H256> {
+        let mut client = MailboxQueryClient::connect(self.get_grpc_url()?).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?;
+        let request = tonic::Request::new(QueryRecipientsIsmIdRequest {
+            recipient: recipient.as_bytes().to_vec(),
+        });
+        let response = client.recipients_ism_id(request).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?.into_inner();
+        Ok(H256::from_low_u64_be(response.ism_id.into()))
+    }
+
     pub async fn query_current_tree(&self) -> ChainResult<QueryCurrentTreeResponse> {
         let mut client = MailboxQueryClient::connect(self.get_grpc_url()?).await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
@@ -166,6 +179,15 @@ impl CosmosProvider {
             .map_err(|e| ChainCommunicationError::from_other(e))?;
         let request = tonic::Request::new(QueryOriginsDefaultIsmRequest { origin });
         let response = client.origins_default_ism(request).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?.into_inner();
+        Ok(response)
+    }
+
+    pub async fn query_custom_ism(&self, ism: H256) -> ChainResult<QueryCustomIsmResponse> {
+        let mut client = IsmQueryClient::connect(self.get_grpc_url()?).await
+            .map_err(|e| ChainCommunicationError::from_other(e))?;
+        let request = tonic::Request::new(QueryCustomIsmRequest { ism_id: H256::to_low_u64_be(&ism) as u32 });
+        let response = client.custom_ism(request).await
             .map_err(|e| ChainCommunicationError::from_other(e))?.into_inner();
         Ok(response)
     }
