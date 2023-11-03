@@ -47,11 +47,18 @@ impl CosmosMultisigIsm {
             provider: Box::new(provider),
         }
     }
+
+    pub fn is_default_ism(&self) -> bool {
+        if self.address.is_zero() {
+            return true
+        }
+        false
+    }
 }
 
 impl HyperlaneContract for CosmosMultisigIsm {
     fn address(&self) -> H256 {
-        self.address
+        self.address.clone()
     }
 }
 
@@ -114,8 +121,17 @@ impl MultisigIsm for CosmosMultisigIsm {
         &self,
         message: &HyperlaneMessage,
     ) -> ChainResult<(Vec<H256>, u8)> {
-        let response = self.provider.query_origins_default_ism(message.origin).await?;
-        proto_to_module_type(response.default_ism.unwrap())
+        let ism = match self.is_default_ism() {
+            true => {
+                let response = self.provider.query_origins_default_ism(message.origin).await?;
+                response.default_ism.unwrap()
+            }
+            _ => {
+                let response = self.provider.query_custom_ism(self.address()).await?;
+                response.custom_ism.unwrap()
+            }
+        };
+        proto_to_module_type(ism)
     }
 }
 

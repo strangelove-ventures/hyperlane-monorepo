@@ -35,7 +35,7 @@ impl CosmosInterchainSecurityModule {
     }
 
     pub fn is_default_ism(&self) -> bool {
-        if self.address == H256::zero() {
+        if self.address.is_zero() {
             return true
         }
         false
