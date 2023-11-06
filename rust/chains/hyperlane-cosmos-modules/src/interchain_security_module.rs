@@ -33,6 +33,7 @@ impl CosmosInterchainSecurityModule {
         }
     }
 
+    // Return true if ISM is default
     pub fn is_default_ism(&self) -> bool {
         if self.address.is_zero() {
             return true
@@ -62,6 +63,7 @@ impl HyperlaneChain for CosmosInterchainSecurityModule {
     }
 }
 
+// Map cosmos sdk ISM type to hyperlane's module type
 fn proto_type_to_module_type(ism: prost_types::Any) -> ModuleType {
     match &*ism.type_url {
         LEGACY_MULTISIG_TYPE_URL => ModuleType::LegacyMultisig,
@@ -73,6 +75,7 @@ fn proto_type_to_module_type(ism: prost_types::Any) -> ModuleType {
 
 #[async_trait]
 impl InterchainSecurityModule for CosmosInterchainSecurityModule {
+    // Query the ISM and return the type
     async fn module_type(&self, origin: u32) -> ChainResult<ModuleType> {
         let ism = match self.is_default_ism() {
             true => {

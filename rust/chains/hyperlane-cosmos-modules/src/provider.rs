@@ -93,14 +93,17 @@ impl CosmosProvider {
         self.address.clone()
     }
 
+    // Return RPC url
     fn get_rpc_url(&self) -> ChainResult<String> {
         Ok(self.conf.get_rpc_url())
     }
     
+    // Return GRPC url
     fn get_grpc_url(&self) -> ChainResult<String> {
         Ok(self.conf.get_grpc_url())
     }
 
+    // Create an rpc client and return it
     fn get_rpc_client(&self) -> ChainResult<HttpClient> {
         let client = HttpClient::builder(self.get_rpc_url()?.parse().unwrap())
             .compat_mode(CompatMode::V0_37)
@@ -109,6 +112,7 @@ impl CosmosProvider {
         Ok(client)
     }
 
+    // Query storage locations of given validator set
     pub async fn query_announced_storage_locations(&self, validators: &[H256]) -> ChainResult<Vec<Vec<String>>> {
         let validators_vec: Vec<Vec<u8>> = validators.iter().map(|v| {
             let v160 = H160::from(v.clone());
@@ -124,6 +128,8 @@ impl CosmosProvider {
         Ok(response.metadata.iter().map(|v| v.metadata.clone()).collect())
     }
 
+
+    // Query delivered status of message id
     pub async fn query_delivered(&self, id: H256) -> ChainResult<bool> {
         let mut client = MailboxQueryClient::connect(self.get_grpc_url()?).await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
@@ -135,6 +141,7 @@ impl CosmosProvider {
         Ok(response.delivered)
     }
 
+    // Query recipient's ISM id
     pub async fn query_recipients_ism_id(&self, recipient: H256) -> ChainResult<H256> {
         let mut client = MailboxQueryClient::connect(self.get_grpc_url()?).await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
@@ -146,6 +153,7 @@ impl CosmosProvider {
         Ok(H256::from_low_u64_be(response.ism_id.into()))
     }
 
+    // Query mailbox's current tree
     pub async fn query_current_tree(&self) -> ChainResult<QueryCurrentTreeResponse> {
         let mut client = MailboxQueryClient::connect(self.get_grpc_url()?).await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
@@ -155,6 +163,7 @@ impl CosmosProvider {
         Ok(response)
     }
 
+    // Query mailbox's current tree metadata
     pub async fn query_current_tree_metadata(&self) -> ChainResult<QueryCurrentTreeMetadataResponse> {
         let mut client = MailboxQueryClient::connect(self.get_grpc_url()?).await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
@@ -164,6 +173,7 @@ impl CosmosProvider {
         Ok(response)
     }
 
+    // Query the default ISM by origin
     pub async fn query_origins_default_ism(&self, origin: u32) -> ChainResult<QueryOriginsDefaultIsmResponse> {
         let mut client = IsmQueryClient::connect(self.get_grpc_url()?).await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
@@ -173,6 +183,7 @@ impl CosmosProvider {
         Ok(response)
     }
 
+    // Query the custom ISM by id
     pub async fn query_custom_ism(&self, ism: H256) -> ChainResult<QueryCustomIsmResponse> {
         let mut client = IsmQueryClient::connect(self.get_grpc_url()?).await
             .map_err(|e| ChainCommunicationError::from_other(e))?;
@@ -182,6 +193,7 @@ impl CosmosProvider {
         Ok(response)
     }
 
+    // Query the latest block
     pub async fn query_latest_block(&self) -> ChainResult<BlockResponse> {
         let client = self.get_rpc_client()?;
         let result = client
@@ -191,18 +203,21 @@ impl CosmosProvider {
         Ok(result)
     }
 
+    // Query a specific block
     pub async fn query_block(&self, block_num: u32) -> ChainResult<BlockResponse> {
         let client = self.get_rpc_client()?;
         let block = client.block(block_num).await.map_err(|e| ChainCommunicationError::from_other(e))?;
         Ok(block)
     }
 
+    // Query a specific block's results
     pub async fn query_block_results(&self, block_num: u32) -> ChainResult<BlockResultsResponse> {
         let client = self.get_rpc_client()?;
         let block_results = client.block_results(block_num).await.map_err(|e| ChainCommunicationError::from_other(e))?;
         Ok(block_results)
     }
 
+    // Query account state
     async fn account_query(&self, account: String) -> ChainResult<BaseAccount> {
         let mut client = QueryAccountClient::connect(self.get_grpc_url()?).await.unwrap();
 
@@ -213,6 +228,7 @@ impl CosmosProvider {
         Ok(account)
     }
 
+    // Simulate a tx
     async fn simulate_raw_tx(&self, msgs: Vec<CosmrsAny>, gas_limit: Option<U256>) -> ChainResult<SimulateResponse> {
         let mut client = TxServiceClient::connect(self.get_grpc_url()?).await.unwrap();
 
@@ -230,6 +246,7 @@ impl CosmosProvider {
         Ok(sim_res)
     }
 
+    // Generate a raw tx
     async fn generate_raw_tx(&self, msgs: Vec<CosmrsAny>, gas_limit: Option<U256>) -> ChainResult<Vec<u8>> {
         let account_info = self.account_query(self.signer.bech32_address().clone()).await?;
 
@@ -266,6 +283,7 @@ impl CosmosProvider {
         Ok(tx_signed.to_bytes().unwrap())
     }
 
+    // Submit a tx on chain
     pub async fn send_tx(&self, msg: CosmrsAny, gas_limit: Option<U256>) -> ChainResult<TxResponse> {
         let msgs = vec![msg];
 
@@ -288,6 +306,7 @@ impl CosmosProvider {
         Ok(tx_res)
     }
 
+    // Simulate a tx
     pub async fn simulate_tx(&self, msg: CosmrsAny) -> ChainResult<SimulateResponse> {
         let msgs = vec![msg];
 

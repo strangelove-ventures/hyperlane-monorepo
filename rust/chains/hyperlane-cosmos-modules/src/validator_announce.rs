@@ -62,6 +62,7 @@ impl HyperlaneChain for CosmosValidatorAnnounce {
 
 #[async_trait]
 impl ValidatorAnnounce for CosmosValidatorAnnounce {
+    // Query the storage locations given a set of validators
     async fn get_announced_storage_locations(
         &self,
         validators: &[H256],
@@ -70,6 +71,7 @@ impl ValidatorAnnounce for CosmosValidatorAnnounce {
         Ok(response)
     }
 
+    // Announce this validator
     async fn announce(
         &self,
         announcement: SignedType<Announcement>,

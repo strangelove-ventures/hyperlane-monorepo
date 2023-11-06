@@ -74,6 +74,7 @@ impl CosmosInterchainGasPaymasterIndexer {
         }
     }
 
+    // Parse IGP events
     fn parse_event(&self, attrs: Vec<EventAttribute>) -> ChainResult<InterchainGasPayment> {
         let mut res = InterchainGasPayment {
             message_id: H256::default(),
@@ -104,6 +105,7 @@ impl CosmosInterchainGasPaymasterIndexer {
         Ok(res)
     }
 
+    // Get block and parse IGP events
     async fn get_and_parse_block(&self, block_num: u32) -> ChainResult<Vec<(InterchainGasPayment, LogMeta)>> {
         let block = self.provider.query_block(block_num).await?;
         let block_results = self.provider.query_block_results(block_num).await?;
@@ -143,8 +145,6 @@ impl CosmosInterchainGasPaymasterIndexer {
                             transaction_index: tx_idx as u64,
                             log_index: U256::from(event_idx),
                         };
-                        println!("meta: block_num: {:?}, transaction_idx: {:?}", block_num, tx_idx);
-                        println!("tx_hash: {:?}", hex::encode(tx_hash.0));
                         result.push((msg, meta));
                     }
                 }
@@ -157,12 +157,12 @@ impl CosmosInterchainGasPaymasterIndexer {
 
 #[async_trait]
 impl Indexer<InterchainGasPayment> for CosmosInterchainGasPaymasterIndexer {
+    // Iterate through a range of blocks for parsing IGP events
     async fn fetch_logs(
         &self,
         range: RangeInclusive<u32>,
     ) -> ChainResult<Vec<(InterchainGasPayment, LogMeta)>> {
         let mut result: Vec<(InterchainGasPayment, LogMeta)> = vec![];
-        info!("Indexer<InterchainGasPayment>: fetch_logs {:?}2", range);
         for block_number in range {
             let logs = self.get_and_parse_block(block_number).await?;
             result.extend(logs);
@@ -170,8 +170,8 @@ impl Indexer<InterchainGasPayment> for CosmosInterchainGasPaymasterIndexer {
         Ok(result)
     }
 
+    // Query the latest block
     async fn get_finalized_block_number(&self) -> ChainResult<u32> {
-        info!("Indexer<InterchainGasPayment>: get_finalized_block_number");
         let result = self.provider.query_latest_block().await?;
         Ok(result.block.header.height.value() as u32)
     }
@@ -179,9 +179,9 @@ impl Indexer<InterchainGasPayment> for CosmosInterchainGasPaymasterIndexer {
 
 #[async_trait]
 impl SequenceIndexer<InterchainGasPayment> for CosmosInterchainGasPaymasterIndexer {
+    // Query the latest block
     async fn sequence_and_tip(&self) -> ChainResult<(Option<u32>, u32)> {
         let tip = self.get_finalized_block_number().await?;
-        println!("CosmosInterchainGasPaymasterIndexer: sequence_and_tip: count: 0, tip: {:?}", tip);
         Ok((Some(0), tip))
     }
 }

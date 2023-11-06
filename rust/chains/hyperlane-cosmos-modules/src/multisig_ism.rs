@@ -68,6 +68,7 @@ impl HyperlaneChain for CosmosMultisigIsm {
     }
 }
 
+// Unpack any type
 fn unpack_from_any<M>(msg: &prost_types::Any) -> ChainResult<M>
 where M: prost::Message + Default,
 {
@@ -75,6 +76,7 @@ where M: prost::Message + Default,
         .map_err(|e| ChainCommunicationError::from_other(e))
 }
 
+// Returns the multisig's val list and threshold
 fn return_vals_and_threshold(vals: Vec<String>, threshold: u32) -> ChainResult<(Vec<H256>, u8)> {
     let vals_h256 = vals
         .into_iter()
@@ -92,6 +94,7 @@ fn return_vals_and_threshold(vals: Vec<String>, threshold: u32) -> ChainResult<(
     Ok((vals_h256, threshold as u8))
 }
 
+// Unpack multisig any type and returns the val list and threshold
 fn proto_to_module_type(ism: prost_types::Any) -> ChainResult<(Vec<H256>, u8)> {
     match &*ism.type_url {
         LEGACY_MULTISIG_TYPE_URL => {

@@ -91,6 +91,7 @@ impl Debug for CosmosMailbox {
 
 #[async_trait]
 impl Mailbox for CosmosMailbox {
+    // Query the mailbox current tree
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn tree(&self, _lag: Option<NonZeroU64>) -> ChainResult<IncrementalMerkle> {
         let response = self.provider.query_current_tree().await?;
@@ -115,6 +116,7 @@ impl Mailbox for CosmosMailbox {
         ))
     }
 
+    // Query the tree count
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn count(&self, _lag: Option<NonZeroU64>) -> ChainResult<u32> {
         let response = self.provider.query_current_tree_metadata().await?;
@@ -123,12 +125,14 @@ impl Mailbox for CosmosMailbox {
         Ok(count)
     }
 
+    // Query the delivered status of a message
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn delivered(&self, id: H256) -> ChainResult<bool> {
         let delivered = self.provider.query_delivered(id).await?;
         Ok(delivered)
     }
 
+    // Query the latest checkpoint
     #[instrument(level = "debug", err, ret, skip(self))]
     async fn latest_checkpoint(&self, _lag: Option<NonZeroU64>) -> ChainResult<Checkpoint> {
         let response = self.provider.query_current_tree_metadata().await?;
@@ -142,17 +146,19 @@ impl Mailbox for CosmosMailbox {
         })
     }
 
+    // Default ISM is 0
     #[instrument(err, ret, skip(self))]
     async fn default_ism(&self) -> ChainResult<H256> {
-        Ok(H256::default()) // Change this to the acc addr of "hyperlane-ism" module
+        Ok(H256::default())
     }
 
+    // Query the recipient's ISM
     #[instrument(err, ret, skip(self))]
     async fn recipient_ism(&self, recipient: H256) -> ChainResult<H256> {
         self.provider.query_recipients_ism_id(recipient).await
     }
 
-    // relayer only
+    // Submit a hyperlane message to chain with metadata
     #[instrument(err, ret, skip(self))]
     async fn process(
         &self,
@@ -181,7 +187,7 @@ impl Mailbox for CosmosMailbox {
         })
     }
 
-    //relayer only
+    // Estimate the process cost
     #[instrument(err, ret, skip(self), fields(msg=%message, metadata=%fmt_bytes(metadata)))]
     async fn process_estimate_costs(
         &self,
@@ -229,6 +235,7 @@ impl CosmosMailboxIndexer {
         }
     }
 
+    // Parse dispatch events
     fn parse_event(&self, attrs: Vec<EventAttribute>) -> ChainResult<HyperlaneMessage> {
         let mut res = HyperlaneMessage::default();
         for attr in attrs {
@@ -261,6 +268,7 @@ impl CosmosMailboxIndexer {
         Ok(res)
     }
 
+    // Get block and parse dispatch events
     async fn get_and_parse_block(&self, block_num: u32) -> ChainResult<Vec<(HyperlaneMessage, LogMeta)>> {
         let block = self.provider.query_block(block_num).await?;
         let block_results = self.provider.query_block_results(block_num).await?;
@@ -311,6 +319,7 @@ impl CosmosMailboxIndexer {
 
 #[async_trait]
 impl Indexer<HyperlaneMessage> for CosmosMailboxIndexer {
+    // Iterate through a range of blocks for parsing dispatch events
     async fn fetch_logs(
         &self,
         range: RangeInclusive<u32>,
@@ -333,6 +342,7 @@ impl Indexer<HyperlaneMessage> for CosmosMailboxIndexer {
 
 #[async_trait]
 impl SequenceIndexer<HyperlaneMessage> for CosmosMailboxIndexer {
+    // Query the tree count and latest block
     async fn sequence_and_tip(&self) -> ChainResult<(Option<u32>, u32)> {
         let tip = self.get_finalized_block_number().await?;
         let response = self.provider.query_current_tree_metadata().await?;

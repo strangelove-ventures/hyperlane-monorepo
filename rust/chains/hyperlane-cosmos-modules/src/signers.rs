@@ -43,6 +43,7 @@ impl Signer {
     }
 }
 
+// Derive bech32 address given the private key and bech32 prefix
 fn derive_bech32_address(private_key: Vec<u8>, prefix: String) -> String {
     let pub_key = SigningKey::from_slice(private_key.as_slice())
         .unwrap()
