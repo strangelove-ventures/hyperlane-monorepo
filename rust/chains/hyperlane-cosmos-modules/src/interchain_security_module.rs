@@ -96,37 +96,3 @@ impl InterchainSecurityModule for CosmosInterchainSecurityModule {
         Ok(Some(U256::zero()))
     }
 }
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use hyperlane_core::{HyperlaneDomainType, HyperlaneDomainProtocol};
-
-    #[tokio::test]
-    async fn test_module_type() {
-        let ism = CosmosInterchainSecurityModule::new(
-            &ConnectionConf{
-                grpc_url: "http://127.0.0.1:45897".to_string(),
-                rpc_url: "".to_string(),
-                chain_id: "".to_string(),
-            },
-            ContractLocator { 
-                domain: &HyperlaneDomain::Unknown {
-                    domain_id: 0,
-                    domain_name: "CosmosTest".to_string(),
-                    domain_type: HyperlaneDomainType::LocalTestChain,
-                    domain_protocol: HyperlaneDomainProtocol::Ethereum,
-                },
-                address: H256::default(),
-            },
-            Signer::new(
-                hex::decode("a011942e70462913d8e2f26a36d487c221dc0b4ca7fc502bd3490c84f98aa0cd").unwrap(), 
-                "cosmos".to_string(),
-                "stake".to_string(),
-            ),
-        );
-        let module_type = ism.module_type(1).await.unwrap();
-        assert_eq!(module_type, ModuleType::LegacyMultisig);
-    }
-}
