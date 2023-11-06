@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 
 use hyperlane_core::{
-    BlockInfo, ChainCommunicationError, ChainResult, ContractLocator,
-    HyperlaneChain, HyperlaneDomain, HyperlaneMessage, HyperlaneProvider, 
-    RawHyperlaneMessage, TxnInfo, H256, U256, H160,
+    BlockInfo, ChainCommunicationError, ChainResult,
+    HyperlaneChain, HyperlaneDomain, HyperlaneProvider, 
+    TxnInfo, H256, U256, H160,
 };
 
 use crate::{
@@ -12,21 +12,18 @@ use crate::{
 };
 use announce_grpc_client::{
     query_client::QueryClient as AnnounceQueryClient,
-    GetAnnouncedStorageLocationsRequest, GetAnnouncedStorageLocationsResponse,
+    GetAnnouncedStorageLocationsRequest,
 };
 use mailbox_grpc_client::{
     query_client::QueryClient as MailboxQueryClient,
     QueryCurrentTreeMetadataRequest, QueryCurrentTreeMetadataResponse, 
     QueryCurrentTreeRequest, QueryCurrentTreeResponse,
-    QueryMsgDeliveredRequest, QueryMsgDeliveredResponse,
-    QueryRecipientsIsmIdRequest, QueryRecipientsIsmIdResponse,
-    MsgProcess,
+    QueryMsgDeliveredRequest, QueryRecipientsIsmIdRequest,
 };
 use ism_grpc_client::{
     query_client::QueryClient as IsmQueryClient,
     QueryCustomIsmRequest, QueryCustomIsmResponse,
     QueryOriginsDefaultIsmRequest, QueryOriginsDefaultIsmResponse,
-    LegacyMultiSig, MerkleRootMultiSig, MessageIdMultiSig,
 };
 use cosmrs::{
     Amount, Coin,
@@ -44,26 +41,19 @@ use cosmrs::{
             },
         },
         traits::Message as CosmrsMessage,
-        Any as CosmrsAny, ibc::core::client,
+        Any as CosmrsAny,
     },
     rpc::{
-        client::{Client, CompatMode, HttpClient, HttpClientUrl},
+        client::{Client, CompatMode, HttpClient},
         endpoint::{
             block::Response as BlockResponse,
             block_results::Response as BlockResultsResponse,
         },
     },
-    tendermint::{
-        abci::EventAttribute,
-        hash::Algorithm,
-        Hash,
-    },
     tx::{
-        Body, Fee, MessageExt, SignDoc, SignerInfo,
+        Body, Fee, SignDoc, SignerInfo,
     }
 };
-use prost::Message;
-use prost_types::Any;
 use std::str::FromStr;
 
 pub mod mailbox_grpc_client {
@@ -324,15 +314,15 @@ impl HyperlaneChain for CosmosProvider {
 
 #[async_trait]
 impl HyperlaneProvider for CosmosProvider {
-    async fn get_block_by_hash(&self, hash: &H256) -> ChainResult<BlockInfo> {
+    async fn get_block_by_hash(&self, _hash: &H256) -> ChainResult<BlockInfo> {
         todo!()
     }
 
-    async fn get_txn_by_hash(&self, hash: &H256) -> ChainResult<TxnInfo> {
+    async fn get_txn_by_hash(&self, _hash: &H256) -> ChainResult<TxnInfo> {
         todo!()
     }
 
-    async fn is_contract(&self, address: &H256) -> ChainResult<bool> {
+    async fn is_contract(&self, _address: &H256) -> ChainResult<bool> {
         Ok(true) // Non-contracts will be supported, so this is a nop
     }
 }

@@ -1,5 +1,4 @@
 use hyperlane_core::config::{ConfigErrResultExt, ConfigPath, ConfigResult, FromRawConf};
-use url::Url;
 
 /// Cosmos connection configuration
 #[derive(Debug, Clone)]

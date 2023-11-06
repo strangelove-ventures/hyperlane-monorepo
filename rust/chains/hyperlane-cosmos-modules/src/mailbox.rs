@@ -1,13 +1,9 @@
 use std::fmt::{Debug, Formatter};
 use std::num::NonZeroU64;
 use std::ops::RangeInclusive;
-use std::sync::Arc;
-use std::time::Duration;
 use tracing::instrument;
-use url::Url;
 
 use async_trait::async_trait;
-use eyre::Result;
 use hyperlane_core::{
     accumulator::{
         TREE_DEPTH,
@@ -25,14 +21,11 @@ use cosmrs::{
         hash::Algorithm,
         Hash,
     },
-    proto::{
-        traits::Message as CosmrsMessage,
-        Any as CosmrsAny,
-    },
+    proto::Any as CosmrsAny,
 };
 use sha256::digest;
 
-use crate::{ConnectionConf, CosmosProvider, Signer, };
+use crate::{ConnectionConf, CosmosProvider, Signer};
 
 use mailbox_grpc_client::MsgProcess;
 use prost::Message;
@@ -99,7 +92,7 @@ impl Debug for CosmosMailbox {
 #[async_trait]
 impl Mailbox for CosmosMailbox {
     #[instrument(level = "debug", err, ret, skip(self))]
-    async fn tree(&self, lag: Option<NonZeroU64>) -> ChainResult<IncrementalMerkle> {
+    async fn tree(&self, _lag: Option<NonZeroU64>) -> ChainResult<IncrementalMerkle> {
         let response = self.provider.query_current_tree().await?;
         let mut branches: [H256; TREE_DEPTH] = Default::default();
         response.branches
@@ -107,7 +100,7 @@ impl Mailbox for CosmosMailbox {
             .enumerate()
             .for_each(|(i, elem)| {
                 let elem_copy = elem.clone();
-                if(!elem_copy.is_empty()) {
+                if !elem_copy.is_empty() {
                     let branch: [u8; 32] = elem_copy.try_into().unwrap();
                     branches[i] = H256::from(branch);
                 }
@@ -123,7 +116,7 @@ impl Mailbox for CosmosMailbox {
     }
 
     #[instrument(level = "debug", err, ret, skip(self))]
-    async fn count(&self, lag: Option<NonZeroU64>) -> ChainResult<u32> {
+    async fn count(&self, _lag: Option<NonZeroU64>) -> ChainResult<u32> {
         let response = self.provider.query_current_tree_metadata().await?;
         let count = response.count;
         println!("count: {:?}", count);
@@ -137,7 +130,7 @@ impl Mailbox for CosmosMailbox {
     }
 
     #[instrument(level = "debug", err, ret, skip(self))]
-    async fn latest_checkpoint(&self, lag: Option<NonZeroU64>) -> ChainResult<Checkpoint> {
+    async fn latest_checkpoint(&self, _lag: Option<NonZeroU64>) -> ChainResult<Checkpoint> {
         let response = self.provider.query_current_tree_metadata().await?;
         let root: [u8; 32] = response.root.try_into().unwrap();
         println!("latest_checkpoint: index: {:?}", response.count);
@@ -217,7 +210,7 @@ impl Mailbox for CosmosMailbox {
     }
 
     // not required
-    fn process_calldata(&self, message: &HyperlaneMessage, metadata: &[u8]) -> Vec<u8> {
+    fn process_calldata(&self, _message: &HyperlaneMessage, _metadata: &[u8]) -> Vec<u8> {
         todo!()
     }
 }

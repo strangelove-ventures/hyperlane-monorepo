@@ -21,7 +21,7 @@ pub struct CosmosInterchainGasPaymaster {
     domain: HyperlaneDomain,
     address: H256,
     signer: Signer,
-    provider: Box<CosmosProvider>,
+    _provider: Box<CosmosProvider>,
 }
 
 impl CosmosInterchainGasPaymaster {
@@ -33,7 +33,7 @@ impl CosmosInterchainGasPaymaster {
             domain: locator.domain.clone(),
             address: locator.address,
             signer,
-            provider: Box::new(provider),
+            _provider: Box::new(provider),
         }
     }
 }

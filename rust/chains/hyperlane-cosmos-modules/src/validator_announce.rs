@@ -6,10 +6,7 @@ use hyperlane_core::{
 };
 
 use crate::{ConnectionConf, CosmosProvider, Signer};
-use cosmrs::proto::{
-    traits::Message as CosmrsMessage,
-    Any as CosmrsAny,
-};
+use cosmrs::proto::Any as CosmrsAny;
 use announce_grpc_client::MsgAnnouncement;
 use prost::Message;
 pub mod announce_grpc_client {
@@ -98,7 +95,7 @@ impl ValidatorAnnounce for CosmosValidatorAnnounce {
         })
     }
 
-    async fn announce_tokens_needed(&self, announcement: SignedType<Announcement>) -> Option<U256> {
+    async fn announce_tokens_needed(&self, _announcement: SignedType<Announcement>) -> Option<U256> {
         None
     }
 }

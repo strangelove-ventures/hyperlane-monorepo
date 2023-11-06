@@ -1,5 +1,4 @@
 use cosmrs::crypto::secp256k1::SigningKey;
-use hyperlane_core::{ChainCommunicationError, ChainResult};
 use digest::Digest;
 use ripemd::Ripemd160;
 use bech32::ToBase32;

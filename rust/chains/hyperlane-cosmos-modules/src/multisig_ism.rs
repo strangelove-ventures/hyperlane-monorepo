@@ -16,11 +16,7 @@ use crate::{
     Signer,
 };
 
-use grpc_client::{
-    query_client::QueryClient,
-    QueryOriginsDefaultIsmRequest, QueryOriginsDefaultIsmResponse,
-    LegacyMultiSig, MerkleRootMultiSig, MessageIdMultiSig,
-};
+use grpc_client::{LegacyMultiSig, MerkleRootMultiSig, MessageIdMultiSig};
 
 pub mod grpc_client {
     tonic::include_proto!("hyperlane.ism.v1");

@@ -1,7 +1,6 @@
 use async_trait::async_trait;
-use cosmrs::proto::cosmos::auth::v1beta1::query_client;
 use hyperlane_core::{
-    ChainCommunicationError, ChainResult, ContractLocator, Encode, HyperlaneChain, HyperlaneContract, HyperlaneDomain,
+    ChainResult, ContractLocator, HyperlaneChain, HyperlaneContract, HyperlaneDomain,
     HyperlaneMessage, HyperlaneProvider, InterchainSecurityModule, ModuleType, H256, U256,
 };
 
@@ -90,8 +89,8 @@ impl InterchainSecurityModule for CosmosInterchainSecurityModule {
 
     async fn dry_run_verify(
         &self,
-        message: &HyperlaneMessage,
-        metadata: &[u8],
+        _message: &HyperlaneMessage,
+        _metadata: &[u8],
     ) -> ChainResult<Option<U256>> {
         Ok(Some(U256::zero()))
     }
