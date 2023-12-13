@@ -1,0 +1,18 @@
+syntax = "proto3";
+package hyperlane.mailbox.v1;
+
+// Msg defines the hyperlane mailbox Msg service.
+//service Msg {
+  // Process delivers interchain messages
+//  rpc Process(MsgProcess) returns (MsgProcessResponse);
+//}
+
+// MsgProcess defines the request type for the Process rpc.
+message MsgProcess {
+  string sender = 1;
+  string metadata = 2;
+  string message = 3;
+}
+
+// MsgProcessResponse defines the Process response type.
+message MsgProcessResponse {}
