@@ -142,7 +142,8 @@ impl ChainConf {
                     .map_err(Into::into)
             }
             ChainConnectionConf::CosmosModules(conf) => {
-                h_cosmos_modules::CosmosMailbox::new(conf, self.domain.clone())
+                let signer = self.cosmos_signer().await.context(ctx)?;
+                h_cosmos_modules::CosmosMailbox::new(conf, locator, signer.unwrap())
                     .map(|m| Box::new(m) as Box<dyn Mailbox>)
                     .map_err(Into::into)
             }
@@ -177,8 +178,11 @@ impl ChainConf {
                 Ok(indexer as Box<dyn SequenceIndexer<HyperlaneMessage>>)
             }
             ChainConnectionConf::CosmosModules(conf) => {
+                let signer = self.cosmos_signer().await.context(ctx)?;
                 let indexer = Box::new(h_cosmos_modules::CosmosMailboxIndexer::new(
                     conf,
+                    locator,
+                    signer.unwrap(),
                 ));
                 Ok(indexer as Box<dyn SequenceIndexer<HyperlaneMessage>>)
             }
@@ -244,7 +248,15 @@ impl ChainConf {
                 );
                 Ok(paymaster as Box<dyn InterchainGasPaymaster>)
             }
-            ChainConnectionConf::CosmosModules(_conf) => todo!()
+            ChainConnectionConf::CosmosModules(conf) => {
+                let signer = self.cosmos_signer().await.context(ctx)?;
+                let paymaster = Box::new(h_cosmos_modules::CosmosInterchainGasPaymaster::new(
+                    conf,
+                    locator,
+                    signer.unwrap(),
+                ));
+                Ok(paymaster as Box<dyn InterchainGasPaymaster>)
+            }
         }
         .context(ctx)
     }
@@ -278,7 +290,15 @@ impl ChainConf {
                 );
                 Ok(indexer as Box<dyn SequenceIndexer<InterchainGasPayment>>)
             }
-            ChainConnectionConf::CosmosModules(_conf) => todo!()
+            ChainConnectionConf::CosmosModules(conf) => {
+                let signer = self.cosmos_signer().await.context(ctx)?;
+                let indexer = Box::new(h_cosmos_modules::CosmosInterchainGasPaymasterIndexer::new(
+                    conf,
+                    locator,
+                    signer.unwrap(),
+                ));
+                Ok(indexer as Box<dyn SequenceIndexer<InterchainGasPayment>>)
+            }
         }
         .context(ctx)
     }
@@ -288,6 +308,7 @@ impl ChainConf {
         &self,
         metrics: &CoreMetrics,
     ) -> Result<Box<dyn ValidatorAnnounce>> {
+        let ctx = "Building validator announce";
         let locator = self.locator(self.addresses.validator_announce);
         match &self.connection {
             ChainConnectionConf::Ethereum(conf) => {
@@ -300,8 +321,13 @@ impl ChainConf {
                 let va = Box::new(h_sealevel::SealevelValidatorAnnounce::new(conf, locator));
                 Ok(va as Box<dyn ValidatorAnnounce>)
             }
-            ChainConnectionConf::CosmosModules(_conf) => {
-                let va = Box::new(h_cosmos_modules::CosmosValidatorAnnounce::new());
+            ChainConnectionConf::CosmosModules(conf) => {
+                let signer = self.cosmos_signer().await.context(ctx)?;
+                let va = Box::new(h_cosmos_modules::CosmosValidatorAnnounce::new(
+                    conf,
+                    locator,
+                    signer.unwrap(),
+                ));
                 Ok(va as Box<dyn ValidatorAnnounce>)
             }
         }
@@ -337,7 +363,15 @@ impl ChainConf {
                 ));
                 Ok(ism as Box<dyn InterchainSecurityModule>)
             }
-            ChainConnectionConf::CosmosModules(_conf) => todo!()
+            ChainConnectionConf::CosmosModules(conf) => {
+                let signer = self.cosmos_signer().await.context(ctx)?;
+                let ism = Box::new(h_cosmos_modules::CosmosInterchainSecurityModule::new(
+                    conf,
+                    locator,
+                    signer.unwrap(),
+                ));
+                Ok(ism as Box<dyn InterchainSecurityModule>)
+            }
         }
         .context(ctx)
     }
@@ -363,7 +397,15 @@ impl ChainConf {
                 let ism = Box::new(h_sealevel::SealevelMultisigIsm::new(conf, locator, keypair));
                 Ok(ism as Box<dyn MultisigIsm>)
             }
-            ChainConnectionConf::CosmosModules(_conf) => todo!()
+            ChainConnectionConf::CosmosModules(conf) => {
+                let signer = self.cosmos_signer().await.context(ctx)?;
+                let ism = Box::new(h_cosmos_modules::CosmosMultisigIsm::new(
+                    conf,
+                    locator,
+                    signer.unwrap(),
+                ));
+                Ok(ism as Box<dyn MultisigIsm>)
+            }
         }
         .context(ctx)
     }
@@ -468,6 +510,10 @@ impl ChainConf {
     }
 
     async fn sealevel_signer(&self) -> Result<Option<h_sealevel::Keypair>> {
+        self.signer().await
+    }
+
+    async fn cosmos_signer(&self) -> Result<Option<h_cosmos_modules::Signer>> {
         self.signer().await
     }
 

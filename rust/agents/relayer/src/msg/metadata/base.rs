@@ -76,7 +76,7 @@ impl MetadataBuilder for BaseMetadataBuilder {
     ) -> Result<Option<Vec<u8>>> {
         const CTX: &str = "When fetching module type";
         let ism = self.build_ism(ism_address).await.context(CTX)?;
-        let module_type = ism.module_type().await.context(CTX)?;
+        let module_type = ism.module_type(message.origin).await.context(CTX)?;
         let base = self.clone_with_incremented_depth()?;
 
         let metadata_builder: Box<dyn MetadataBuilder> = match module_type {

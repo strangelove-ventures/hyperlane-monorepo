@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package hyperlane.announce.v1;
+
+// Query service for hyperlane announce module
+service Query {
+  // Gets the announced storage locations (where signatures are stored) for the
+  // requested validators
+  rpc GetAnnouncedStorageLocations(GetAnnouncedStorageLocationsRequest)
+      returns (GetAnnouncedStorageLocationsResponse);
+
+  // Gets a list of validators that have made announcements
+  rpc GetAnnouncedValidators(GetAnnouncedValidatorsRequest)
+      returns (GetAnnouncedValidatorsResponse);
+}
+
+// GetAnnouncedStorageLocationsRequest is the request type for the
+// GetAnnouncedStorageLocations RPC method.
+message GetAnnouncedStorageLocationsRequest {
+  // list of validators where each validator is in eth address format (20 bytes)
+  repeated bytes validator = 1;
+}
+
+// GetAnnouncedStorageLocationsResponse is the response type for the
+// GetAnnouncedStorageLocations RPC method.
+message GetAnnouncedStorageLocationsResponse {
+  repeated StorageMetadata metadata = 1;
+}
+
+// GetAnnouncedValidatorsRequest is the request type for the
+// GetAnnouncedValidators RPC method.
+message GetAnnouncedValidatorsRequest {}
+
+// GetAnnouncedValidatorsResponse is the response type for the
+// GetAnnouncedValidators RPC method.
+message GetAnnouncedValidatorsResponse {
+  // list of validators where each validator is in eth address format (20 bytes)
+  repeated bytes validator = 1;
+}
+
+// Helper type for Hyperlane's getAnnouncedStorageLocations.
+message StorageMetadata {
+  repeated string metadata = 1;
+}
+  

@@ -53,7 +53,7 @@ impl HyperlaneChain for SealevelInterchainSecurityModule {
 
 #[async_trait]
 impl InterchainSecurityModule for SealevelInterchainSecurityModule {
-    async fn module_type(&self) -> ChainResult<ModuleType> {
+    async fn module_type(&self, _origin: u32) -> ChainResult<ModuleType> {
         let instruction = Instruction::new_with_bytes(
             self.program_id,
             &InterchainSecurityModuleInstruction::Type

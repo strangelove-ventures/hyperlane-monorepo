@@ -3938,8 +3938,10 @@ name = "hyperlane-cosmos-modules"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bech32 0.9.1",
  "cosmrs",
  "derive-new",
+ "digest 0.10.7",
  "eyre",
  "futures-util",
  "hex 0.4.3",
@@ -3947,9 +3949,12 @@ dependencies = [
  "num 0.4.1",
  "num-traits",
  "prost 0.12.1",
+ "prost-types 0.12.1",
  "reqwest",
+ "ripemd",
  "serde",
  "serde_json",
+ "sha2 0.10.7",
  "sha256",
  "thiserror",
  "tokio",

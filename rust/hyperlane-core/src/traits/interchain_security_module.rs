@@ -39,7 +39,7 @@ pub enum ModuleType {
 pub trait InterchainSecurityModule: HyperlaneContract + Send + Sync + Debug {
     /// Returns the module type of the ISM compliant with the corresponding
     /// metadata offchain fetching and onchain formatting standard.
-    async fn module_type(&self) -> ChainResult<ModuleType>;
+    async fn module_type(&self, origin: u32) -> ChainResult<ModuleType>;
 
     /// Dry runs the `verify()` ISM call and returns `Some(gas_estimate)` if the call
     /// succeeds.
