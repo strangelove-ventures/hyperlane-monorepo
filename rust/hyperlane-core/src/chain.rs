@@ -157,6 +157,8 @@ pub enum HyperlaneDomainProtocol {
     Fuel,
     /// A Sealevel-based chain type which uses hyperlane-sealevel.
     Sealevel,
+    /// A chain built with the Cosmos SDK which uses hyperlane-cosmos.
+    Cosmos,
 }
 
 impl HyperlaneDomainProtocol {
@@ -166,6 +168,7 @@ impl HyperlaneDomainProtocol {
             Ethereum => format!("{:?}", H160::from(addr)),
             Fuel => format!("{:?}", addr),
             Sealevel => format!("{:?}", addr),
+            Cosmos => format!("{:?}", addr),
         }
     }
 }
@@ -183,7 +186,7 @@ impl KnownHyperlaneDomain {
             Mainnet: [
                 Ethereum, Avalanche, Arbitrum, Polygon, Optimism, BinanceSmartChain, Celo,
                 Moonbeam,
-                Gnosis
+                Gnosis,
             ],
             Testnet: [
                 Goerli, Mumbai, Fuji, ArbitrumGoerli, OptimismGoerli, BinanceSmartChainTestnet,
@@ -363,7 +366,7 @@ impl HyperlaneDomain {
         use HyperlaneDomainProtocol::*;
         let protocol = self.domain_protocol();
         many_to_one!(match protocol {
-            IndexMode::Block: [Ethereum],
+            IndexMode::Block: [Ethereum, Cosmos],
             IndexMode::Sequence : [Sealevel, Fuel],
         })
     }

@@ -255,10 +255,11 @@ fn parse_chain(chain: ValueParser, name: &str) -> ConfigResult<ChainConf> {
         HyperlaneDomainProtocol::Sealevel => {
             ParseChain::from_option(rpcs.into_iter().next(), &mut err)
                 .get_key("http")
-                .parse_from_str("Invalod http url")
+                .parse_from_str("Invalid http url")
                 .end()
                 .map(|url| ChainConnectionConf::Sealevel(h_sealevel::ConnectionConf { url }))
         }
+        HyperlaneDomainProtocol::Cosmos => todo!(),
     };
 
     cfg_unwrap_all!(&chain.cwp, err: [connection, mailbox, interchain_gas_paymaster, validator_announce]);
